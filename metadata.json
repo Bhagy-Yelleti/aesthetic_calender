@@ -1,0 +1,5 @@
+{
+  "name": "Lumina Calendar",
+  "description": "A polished, interactive wall-calendar inspired React component with range selection and integrated notes.",
+  "requestFramePermissions": []
+}
