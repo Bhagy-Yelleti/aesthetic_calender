@@ -6,7 +6,7 @@ An interactive wall calendar built for the Striver Frontend Engineering Challeng
 
 ## Live Demo
 
-> Deploy link will appear here after Vercel deployment.
+> [https://aesthetic-calender.vercel.app](https://aesthetic-calender.vercel.app)
 
 ---
 
