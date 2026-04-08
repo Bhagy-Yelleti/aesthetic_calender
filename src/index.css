@@ -39,11 +39,12 @@ body {
 .notion-card {
   background-color: var(--surface-bg);
   border: 1px solid var(--border-color);
-  @apply shadow-[0px_1px_2px_rgba(0, 0, 0, 0.05)] rounded-xl transition-all duration-200;
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05);
+  @apply rounded-xl transition-all duration-200;
 }
 
 .notion-card:hover {
-  @apply shadow-[0px_4px_12px_rgba(0, 0, 0, 0.1)];
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .notion-sidebar {
