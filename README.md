@@ -1,4 +1,4 @@
-# Lumina Calendar
+# Luminar Calender
 
 An interactive wall calendar built for the Striver Frontend Engineering Challenge. It combines a physical wall calendar aesthetic with rich seasonal animations, date range selection, and an integrated notes system.
 

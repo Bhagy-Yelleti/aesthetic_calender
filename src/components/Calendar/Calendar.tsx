@@ -1,6 +1,6 @@
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isWithinInterval, addMonths, subMonths, isToday } from "date-fns";
 import { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, StickyNote, Plus, Trash2, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, StickyNote, Plus, Trash2, Sparkles, Image } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/src/lib/utils";
 import {
@@ -291,7 +291,7 @@ export default function Calendar({ className }: CalendarProps) {
               {/* Monthly Holidays Section */}
               <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
                 <h3 className="text-sm font-semibold uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4" /> Monthly Holidays
+                  <Image className="w-4 h-4" /> Monthly Holidays
                 </h3>
                 <div className="space-y-3 max-h-[150px] overflow-y-auto custom-scrollbar pr-2">
                   {Object.entries(HOLIDAYS)
