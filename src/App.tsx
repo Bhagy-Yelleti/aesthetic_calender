@@ -5,15 +5,15 @@ import { Moon, Sun, Sparkles } from "lucide-react";
 export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('app-theme') as 'light' | 'dark';
-      return stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      const saved = localStorage.getItem('luminar-theme') as 'light' | 'dark';
+      return saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     }
     return 'light';
   });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('app-theme', theme);
+    localStorage.setItem('luminar-theme', theme);
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -21,41 +21,33 @@ export default function App() {
     }
   }, [theme]);
 
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
-
   return (
-    <div className="min-h-screen transition-all duration-500 ease-in-out">
-      <nav className="max-w-[1400px] mx-auto p-10 flex justify-between items-center bg-transparent relative z-50">
-        <div className="flex items-center gap-4 group cursor-pointer">
-          <div className="relative">
-            <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
-            <div className="w-12 h-12 rounded-2xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black relative z-10 shadow-2xl">
-              <Sparkles className="w-6 h-6 animate-pulse" />
+    <div className="min-h-screen transition-colors duration-700 ease-in-out">
+      <nav className="max-w-[1400px] mx-auto p-12 flex justify-between items-center relative z-50">
+        <div className="flex items-center gap-5">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-indigo-500/20 blur-2xl group-hover:bg-indigo-500/40 transition-all rounded-full" />
+            <div className="w-14 h-14 rounded-full bg-black dark:bg-white flex items-center justify-center text-white dark:text-black relative z-10 shadow-3xl overflow-hidden active:scale-90 transition-transform">
+              <Sparkles className="w-7 h-7" />
             </div>
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-black uppercase tracking-[0.3em] leading-tight">Luminar</span>
-            <span className="text-[10px] font-bold opacity-30 uppercase tracking-[0.2em]">Planner</span>
+            <h1 className="text-lg font-black uppercase tracking-[0.4em] leading-none mb-1">Luminar</h1>
+            <p className="text-[10px] font-extrabold opacity-40 uppercase tracking-[0.3em]">Temporal Planner</p>
           </div>
         </div>
 
         <button
-          onClick={toggleTheme}
-          className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-white/5 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm border border-gray-100 dark:border-white/5"
+          onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+          className="w-14 h-14 rounded-full bg-gray-50 dark:bg-white/5 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 transition-all shadow-sm border border-gray-100 dark:border-white/10"
         >
-          {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          {theme === 'light' ? <Moon className="w-6 h-6" /> : <Sun className="w-6 h-6" />}
         </button>
       </nav>
 
-      <main className="relative">
-        <div className="max-w-[1400px] mx-auto py-10">
-          <Calendar />
-        </div>
+      <main className="pb-20">
+        <Calendar />
       </main>
-
-      <footer className="py-20 text-center select-none">
-        <p className="text-[10px] font-black uppercase tracking-[0.5em] opacity-20">Luminar Calendar • Eternal Design</p>
-      </footer>
     </div>
   );
 }

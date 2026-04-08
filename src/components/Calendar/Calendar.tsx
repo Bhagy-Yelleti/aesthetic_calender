@@ -21,28 +21,28 @@ import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/src/lib/utils";
 import { GlobalEffects } from "./animations";
 
-interface Note {
+interface PlannerNote {
   id: string;
   date: Date;
   content: string;
 }
 
-const THEME_DATA: Record<number, { pic: string; mood: string }> = {
-  0: { pic: "https://images.unsplash.com/photo-1517299321609-52687d1bc55a", mood: "Winter Calm" },
-  1: { pic: "https://images.unsplash.com/photo-1518199266791-5375a83190b7", mood: "Springing Up" },
-  2: { pic: "https://images.unsplash.com/photo-1522748906645-95d8adfd52c7", mood: "Cherry Petals" },
-  3: { pic: "https://images.unsplash.com/photo-1462275646964-a0e3386b89fa", mood: "Fresh Fields" },
-  4: { pic: "https://images.unsplash.com/photo-1500382017468-9049fed747ef", mood: "Garden Walk" },
-  5: { pic: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e", mood: "Beach Vibes" },
-  6: { pic: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1", mood: "Warm Sunset" },
-  7: { pic: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d", mood: "Forest Path" },
-  8: { pic: "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee", mood: "Golden Hour" },
-  9: { pic: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071", mood: "Autumn Drift" },
-  10: { pic: "https://images.unsplash.com/photo-1477601263568-180e2c6d046e", mood: "Misty Evening" },
-  11: { pic: "https://images.unsplash.com/photo-1512389142860-9c449e58a543", mood: "Snowy Night" },
+const SEASONS: Record<number, { img: string; title: string }> = {
+  0: { img: "https://images.unsplash.com/photo-1517299321609-52687d1bc55a", title: "Winter Silence" },
+  1: { img: "https://images.unsplash.com/photo-1518199266791-5375a83190b7", title: "Early Bloom" },
+  2: { img: "https://images.unsplash.com/photo-1522748906645-95d8adfd52c7", title: "Spring Sakura" },
+  3: { img: "https://images.unsplash.com/photo-1462275646964-a0e3386b89fa", title: "Fresh Fields" },
+  4: { img: "https://images.unsplash.com/photo-1500382017468-9049fed747ef", title: "Garden Walk" },
+  5: { img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e", title: "Summer Shores" },
+  6: { img: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1", title: "Warm Sunset" },
+  7: { img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d", title: "Forest Path" },
+  8: { img: "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee", title: "Golden Hour" },
+  9: { img: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071", title: "Autumn Drift" },
+  10: { img: "https://images.unsplash.com/photo-1477601263568-180e2c6d046e", title: "Misty Evening" },
+  11: { img: "https://images.unsplash.com/photo-1512389142860-9c449e58a543", title: "Snowy Night" },
 };
 
-const FEAST_DAYS: Record<string, string> = {
+const FEASTS: Record<string, string> = {
   "01-01": "New Year",
   "02-14": "Valentine",
   "10-31": "Halloween",
@@ -50,133 +50,128 @@ const FEAST_DAYS: Record<string, string> = {
 };
 
 export default function Calendar() {
-  const [viewedDate, setViewedDate] = useState(new Date());
-  const [currentSelection, setCurrentSelection] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
-  const [memos, setMemos] = useState<Note[]>([]);
-  const [isNoteDrawerOpen, setIsNoteDrawerOpen] = useState(false);
-  const [activeNoteText, setActiveNoteText] = useState("");
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selection, setSelection] = useState<{ start: Date | null, end: Date | null }>({ start: null, end: null });
+  const [allNotes, setAllNotes] = useState<PlannerNote[]>([]);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorText, setEditorText] = useState("");
 
-  const currentMonthIdx = viewedDate.getMonth();
-  const currentMeta = THEME_DATA[currentMonthIdx];
+  const currentMonthIdx = currentDate.getMonth();
+  const meta = SEASONS[currentMonthIdx];
 
   useEffect(() => {
-    const data = localStorage.getItem("planner_memos");
-    if (data) {
-      setMemos(JSON.parse(data).map((m: any) => ({ ...m, date: new Date(m.date) })));
+    const saved = localStorage.getItem("luminar_planner_v2");
+    if (saved) {
+      setAllNotes(JSON.parse(saved).map((n: any) => ({ ...n, date: new Date(n.date) })));
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("planner_memos", JSON.stringify(memos));
-  }, [memos]);
+    localStorage.setItem("luminar_planner_v2", JSON.stringify(allNotes));
+  }, [allNotes]);
 
-  const datesToDisplay = useMemo(() => {
-    const start = startOfMonth(viewedDate);
+  const gridDays = useMemo(() => {
+    const start = startOfMonth(currentDate);
+    const end = endOfMonth(start);
     return eachDayOfInterval({
       start: startOfWeek(start),
-      end: endOfWeek(endOfMonth(start)),
+      end: endOfWeek(end),
     });
-  }, [viewedDate]);
+  }, [currentDate]);
 
-  const selectDate = (d: Date) => {
-    if (!currentSelection.start || (currentSelection.start && currentSelection.end)) {
-      setCurrentSelection({ start: d, end: null });
+  const onDayClick = (day: Date) => {
+    if (!selection.start || (selection.start && selection.end)) {
+      setSelection({ start: day, end: null });
     } else {
-      if (d < currentSelection.start) {
-        setCurrentSelection({ start: d, end: currentSelection.start });
+      if (day < selection.start) {
+        setSelection({ start: day, end: selection.start });
       } else {
-        setCurrentSelection({ start: currentSelection.start, end: d });
+        setSelection({ start: selection.start, end: day });
       }
     }
   };
 
-  const moveMonth = (val: number) => {
-    setViewedDate(addMonths(viewedDate, val));
+  const navMonth = (offset: number) => {
+    setCurrentDate(addMonths(currentDate, offset));
   };
 
-  const addMemo = () => {
-    if (!activeNoteText.trim() || !currentSelection.start) return;
-    const newMemo: Note = {
-      id: Math.random().toString(36).slice(2, 9),
-      date: currentSelection.start,
-      content: activeNoteText,
+  const onSave = () => {
+    if (!editorText.trim() || !selection.start) return;
+    const note: PlannerNote = {
+      id: Math.random().toString(36).slice(7),
+      date: selection.start,
+      content: editorText,
     };
-    setMemos(prev => [...prev, newMemo]);
-    setActiveNoteText("");
-    setIsNoteDrawerOpen(false);
+    setAllNotes(prev => [...prev, note]);
+    setEditorText("");
+    setEditorOpen(false);
   };
 
-  const getDayStatus = (d: Date) => {
-    const active = isSameMonth(d, viewedDate);
-    const start = currentSelection.start && isSameDay(d, currentSelection.start);
-    const end = currentSelection.end && isSameDay(d, currentSelection.end);
-    const inRange = currentSelection.start && currentSelection.end && isWithinInterval(d, { start: currentSelection.start, end: currentSelection.end });
-    return { active, start, end, inRange };
-  };
+  const monthNotes = allNotes.filter(n => isSameMonth(n.date, currentDate));
 
   return (
-    <div className="flex flex-col gap-12 max-w-6xl mx-auto pb-20 relative">
+    <div className="flex flex-col gap-12 max-w-6xl mx-auto px-6 relative z-10">
       <GlobalEffects month={currentMonthIdx} />
 
-      <header className="px-6 flex flex-col gap-8">
-        <div className="flex items-center gap-3 text-[10px] font-black opacity-30 uppercase tracking-[0.5em]">
-          <span>Archive</span>
+      <header className="flex flex-col gap-8">
+        <div className="flex items-center gap-3 text-[10px] font-extrabold opacity-30 uppercase tracking-[0.4em]">
+          <span>Project</span>
           <span>/</span>
-          <span>Personal Space</span>
+          <span>Workspace</span>
         </div>
 
         <div className="flex items-center gap-10">
-          <div className="text-9xl transition-transform hover:scale-105">
-            {currentMonthIdx === 2 || currentMonthIdx === 3 ? "🌸" :
+          <div className="text-9xl transition-all duration-700">
+            {currentMonthIdx === 2 || currentMonthIdx === 3 ? "💮" :
               currentMonthIdx >= 5 && currentMonthIdx <= 7 ? "🌊" :
-                currentMonthIdx >= 8 && currentMonthIdx <= 10 ? "🍂" : "❄️"}
+                currentMonthIdx >= 8 && currentMonthIdx <= 10 ? "🍁" : "❅"}
           </div>
           <div>
-            <h1 className="text-7xl font-black tracking-tighter leading-none mb-3">
-              {format(viewedDate, "MMMM yyyy")}
+            <h1 className="text-7xl font-black text-[var(--app-text)] tracking-tighter mb-4 leading-none">
+              {format(currentDate, "MMMM yyyy")}
             </h1>
-            <p className="text-xl font-bold opacity-40 italic tracking-widest uppercase">
-              {currentMeta.mood}
+            <p className="text-xl font-bold opacity-40 uppercase tracking-[0.3em] font-sans">
+              {meta.title}
             </p>
           </div>
         </div>
       </header>
 
-      <section className="relative h-72 mx-6 rounded-[60px] overflow-hidden group shadow-2xl">
+      <section className="relative h-80 rounded-[50px] overflow-hidden shadow-2xl bg-gray-100 dark:bg-white/5">
         <AnimatePresence mode="wait">
           <motion.img
             key={currentMonthIdx}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, scale: 1.1 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.8 }}
-            src={currentMeta.pic}
-            className="w-full h-full object-cover grayscale-[30%] dark:grayscale-[50%] brightness-95 dark:brightness-40 group-hover:scale-105 transition-transform duration-[2s]"
+            src={meta.img}
+            className="w-full h-full object-cover dark:brightness-[0.4] brightness-90 transition-all duration-1000"
           />
         </AnimatePresence>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-        <div className="absolute bottom-10 right-10 flex gap-4">
-          <button onClick={() => moveMonth(-1)} className="p-4 rounded-[30px] bg-white/10 backdrop-blur-3xl border border-white/20 hover:bg-white/20 transition-all">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+        <div className="absolute bottom-8 right-8 flex gap-4">
+          <button onClick={() => navMonth(-1)} className="p-4 rounded-[28px] bg-white/10 backdrop-blur-2xl border border-white/20 hover:bg-white/30 transition-all active:scale-90">
             <ChevronLeft className="w-8 h-8 text-white" />
           </button>
-          <button onClick={() => moveMonth(1)} className="p-4 rounded-[30px] bg-white/10 backdrop-blur-3xl border border-white/20 hover:bg-white/20 transition-all">
+          <button onClick={() => navMonth(1)} className="p-4 rounded-[28px] bg-white/10 backdrop-blur-2xl border border-white/20 hover:bg-white/30 transition-all active:scale-90">
             <ChevronRight className="w-8 h-8 text-white" />
           </button>
         </div>
       </section>
 
-      <div className="grid lg:grid-cols-[300px_1fr] gap-20 px-6">
+      <div className="grid lg:grid-cols-[280px_1fr] gap-20">
         <aside className="space-y-16">
           <div className="space-y-8">
-            <h3 className="text-[10px] font-black opacity-40 uppercase tracking-[0.5em]">Upcoming</h3>
-            <div className="space-y-8 max-h-[500px] overflow-y-auto custom-scrollbar pr-6">
-              {memos.filter(m => isSameMonth(m.date, viewedDate)).length === 0 ? (
-                <p className="text-xs font-bold opacity-20">Blank canvas...</p>
+            <h4 className="text-[10px] font-black opacity-30 uppercase tracking-[0.6em]">Recent</h4>
+            <div className="space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar pr-4">
+              {monthNotes.length === 0 ? (
+                <p className="text-xs font-bold opacity-20">Nothing planned.</p>
               ) : (
-                memos.filter(m => isSameMonth(m.date, viewedDate)).map(m => (
-                  <div key={m.id} className="relative group pl-5 border-l-2 border-indigo-500/20">
-                    <span className="text-[10px] font-black text-indigo-400 mb-2 block">{format(m.date, "MMM dd")}</span>
-                    <p className="text-sm font-medium leading-[1.6] opacity-90">{m.content}</p>
+                monthNotes.map(n => (
+                  <div key={n.id} className="relative group pl-5 border-l-2 border-indigo-500/30 hover:border-indigo-500 transition-colors">
+                    <span className="text-[10px] font-black text-indigo-500 mb-2 block">{format(n.date, "MMM dd")}</span>
+                    <p className="text-sm font-medium opacity-80 leading-relaxed text-[var(--app-text)]">{n.content}</p>
                   </div>
                 ))
               )}
@@ -184,16 +179,16 @@ export default function Calendar() {
           </div>
 
           <div className="space-y-8">
-            <h3 className="text-[10px] font-black opacity-40 uppercase tracking-[0.5em]">Holidays</h3>
+            <h4 className="text-[10px] font-black opacity-30 uppercase tracking-[0.6em]">Festivals</h4>
             <div className="space-y-5">
-              {Object.entries(FEAST_DAYS).map(([day, name]) => {
-                const yr = viewedDate.getFullYear();
-                const d = new Date(`${yr}-${day}`);
-                if (isSameMonth(d, viewedDate)) {
+              {Object.entries(FEASTS).map(([m_d, title]) => {
+                const yr = currentDate.getFullYear();
+                const d = new Date(`${yr}-${m_d}`);
+                if (isSameMonth(d, currentDate)) {
                   return (
-                    <div key={day} className="flex flex-col gap-1">
-                      <span className="text-sm font-black">{name}</span>
-                      <span className="text-[10px] font-black text-rose-500 opacity-60">{format(d, "MMMM do")}</span>
+                    <div key={m_d} className="flex flex-col gap-1">
+                      <span className="text-sm font-black text-[var(--app-text)]">{title}</span>
+                      <span className="text-[10px] font-black text-rose-400 opacity-60 uppercase">{format(d, "MMMM do")}</span>
                     </div>
                   );
                 }
@@ -203,49 +198,46 @@ export default function Calendar() {
           </div>
         </aside>
 
-        <main>
-          <div className="grid grid-cols-7 mb-16 px-4">
+        <main className="flex flex-col">
+          <div className="grid grid-cols-7 mb-12 opacity-30">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-              <div key={d} className="text-center text-[10px] font-black opacity-20 uppercase tracking-[0.6em]">
+              <div key={d} className="text-center text-[10px] font-black uppercase tracking-[0.5em] text-[var(--app-text)]">
                 {d}
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-y-10">
-            {datesToDisplay.map(day => {
-              const { active, start, end, inRange } = getDayStatus(day);
-              const isSelected = start || end;
-              const feast = FEAST_DAYS[format(day, "MM-dd")];
-              const memoCount = memos.filter(m => isSameDay(m.date, day)).length;
+          <div className="grid grid-cols-7 gap-y-8">
+            {gridDays.map(day => {
+              const active = isSameMonth(day, currentDate);
+              const start = selection.start && isSameDay(day, selection.start);
+              const end = selection.end && isSameDay(day, selection.end);
+              const grouped = selection.start && selection.end && isWithinInterval(day, { start: selection.start, end: selection.end });
+              const today = isToday(day);
+              const noted = allNotes.some(n => isSameDay(n.date, day));
 
               return (
                 <div key={day.toISOString()} className="h-16 flex items-center justify-center">
                   <button
-                    onClick={() => active && selectDate(day)}
+                    onClick={() => active && onDayClick(day)}
                     className={cn(
-                      "w-16 h-16 rounded-[24px] flex flex-col items-center justify-center transition-all duration-400 relative",
+                      "w-14 h-14 rounded-[22px] flex flex-col items-center justify-center transition-all duration-300 relative",
                       !active && "opacity-0 cursor-default",
                       active && "hover:bg-gray-100 dark:hover:bg-white/5",
-                      isSelected && "bg-black dark:bg-white scale-110 z-10 shadow-3xl",
-                      inRange && !isSelected && "bg-gray-50 dark:bg-white/5",
-                      isToday(day) && !isSelected && "ring-2 ring-indigo-500/20"
+                      (start || end) && "bg-black dark:bg-white text-white dark:text-black scale-110 z-10 shadow-2xl",
+                      grouped && !(start || end) && "bg-gray-100 dark:bg-white/10",
+                      today && !(start || end) && "border-2 border-indigo-400/30"
                     )}
                   >
                     <span className={cn(
                       "text-xl font-black",
-                      isSelected ? "text-white dark:text-black" : (isToday(day) ? "text-indigo-500" : "")
+                      (start || end) ? "text-white dark:text-black" : (today ? "text-indigo-500" : "text-[var(--app-text)]")
                     )}>
                       {format(day, "d")}
                     </span>
 
-                    {memoCount > 0 && !isSelected && (
-                      <div className="absolute bottom-2.5 w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                    )}
-                    {feast && active && (
-                      <div className="absolute top-1 right-2 p-1">
-                        <Sparkles className="w-2.5 h-2.5 text-rose-400 opacity-40" />
-                      </div>
+                    {noted && !(start || end) && (
+                      <div className="absolute bottom-2.5 w-1 h-1 rounded-full bg-indigo-500" />
                     )}
                   </button>
                 </div>
@@ -253,27 +245,28 @@ export default function Calendar() {
             })}
           </div>
 
-          <footer className="mt-20 pt-12 border-t border-gray-100 dark:border-white/5 flex items-center justify-between px-4">
-            <div className="text-[10px] font-black opacity-40 uppercase tracking-[0.3em]">
-              {currentSelection.start ? (
-                currentSelection.end ? `${format(currentSelection.start, "MMM dd")} - ${format(currentSelection.end, "MMM dd")}` : format(currentSelection.start, "MMMM dd, yyyy")
-              ) : "Select a date"}
+          <footer className="mt-16 pt-12 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
+            <div className="text-[10px] font-black opacity-30 uppercase tracking-[0.4em] text-[var(--app-text)]">
+              {selection.start ? (
+                selection.end ? `${format(selection.start, "MMM dd")} - ${format(selection.end, "MMM dd")}` : format(selection.start, "MMMM dd, yyyy")
+              ) : "Select date"}
             </div>
+
             <div className="flex gap-10">
-              {currentSelection.start && (
+              {selection.start && (
                 <button
-                  onClick={() => setIsNoteDrawerOpen(true)}
-                  className="px-10 py-4 bg-black dark:bg-white text-white dark:text-black rounded-[22px] text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl"
+                  onClick={() => setEditorOpen(true)}
+                  className="px-10 py-4 bg-black dark:bg-white text-white dark:text-black rounded-[24px] text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl"
                 >
-                  New Plan
+                  Write
                 </button>
               )}
-              {currentSelection.start && (
+              {selection.start && (
                 <button
-                  onClick={() => setCurrentSelection({ start: null, end: null })}
-                  className="text-[10px] font-black opacity-40 hover:opacity-100 transition-opacity uppercase tracking-widest"
+                  onClick={() => setSelection({ start: null, end: null })}
+                  className="text-[10px] font-black opacity-30 hover:opacity-100 transition-opacity uppercase tracking-widest text-[var(--app-text)]"
                 >
-                  Clear
+                  Reset
                 </button>
               )}
             </div>
@@ -282,34 +275,34 @@ export default function Calendar() {
       </div>
 
       <AnimatePresence>
-        {isNoteDrawerOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-10">
+        {editorOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-8">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/40 backdrop-blur-2xl"
-              onClick={() => setIsNoteDrawerOpen(false)}
+              onClick={() => setEditorOpen(false)}
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 50 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 50 }}
-              className="relative w-full max-w-sm bg-white dark:bg-[#111111] p-12 rounded-[60px] shadow-3xl overflow-hidden"
+              className="relative w-full max-w-sm bg-white dark:bg-[#0A0A0A] p-12 rounded-[60px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] border border-white/5"
             >
-              <h2 className="text-3xl font-black tracking-tighter mb-10">New Memo</h2>
+              <h2 className="text-3xl font-black mb-10 text-[var(--app-text)] tracking-tighter">Plan</h2>
               <textarea
                 autoFocus
-                value={activeNoteText}
-                onChange={e => setActiveNoteText(e.target.value)}
-                placeholder="What's the plan?"
-                className="w-full h-48 p-8 bg-gray-50 dark:bg-white/5 rounded-[36px] resize-none border-none focus:ring-1 focus:ring-black dark:focus:ring-white text-lg font-medium"
+                value={editorText}
+                onChange={e => setEditorText(e.target.value)}
+                placeholder="..."
+                className="w-full h-48 p-8 bg-gray-50 dark:bg-white/5 rounded-[36px] resize-none border-none focus:ring-1 focus:ring-black dark:focus:ring-white text-lg font-bold text-[var(--app-text)]"
               />
-              <div className="flex gap-5 mt-12">
-                <button onClick={addMemo} className="flex-1 py-5 bg-black dark:bg-white text-white dark:text-black rounded-[28px] text-sm font-black uppercase tracking-widest">
+              <div className="flex gap-4 mt-12">
+                <button onClick={onSave} className="flex-1 py-5 bg-black dark:bg-white text-white dark:text-black rounded-[28px] text-xs font-black uppercase tracking-widest">
                   Save
                 </button>
-                <button onClick={() => setIsNoteDrawerOpen(false)} className="px-8 py-5 bg-gray-100 dark:bg-white/5 opacity-50 rounded-[28px] text-sm font-black uppercase tracking-widest">
+                <button onClick={() => setEditorOpen(false)} className="px-8 py-5 bg-gray-100 dark:bg-white/5 text-gray-400 rounded-[28px] text-xs font-black uppercase tracking-widest">
                   Back
                 </button>
               </div>
