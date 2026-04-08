@@ -9,188 +9,191 @@ import {
   isSameDay,
   isWithinInterval,
   addMonths,
-  addDays,
   isToday
 } from "date-fns";
 import { useState, useEffect, useMemo } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  Plus,
   Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/src/lib/utils";
 import { GlobalEffects } from "./animations";
 
-interface UserMemo {
+interface Note {
   id: string;
   date: Date;
-  text: string;
+  content: string;
 }
 
-const MONTH_METADATA: Record<number, { cover: string; quote: string }> = {
-  0: { cover: "https://images.unsplash.com/photo-1517299321609-52687d1bc55a", quote: "Winter Silence" },
-  1: { cover: "https://images.unsplash.com/photo-1518199266791-5375a83190b7", quote: "Early Bloom" },
-  2: { cover: "https://images.unsplash.com/photo-1522748906645-95d8adfd52c7", quote: "Spring Sakura" },
-  3: { cover: "https://images.unsplash.com/photo-1462275646964-a0e3386b89fa", quote: "Fresh Green" },
-  4: { cover: "https://images.unsplash.com/photo-1500382017468-9049fed747ef", quote: "Garden Lush" },
-  5: { cover: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e", quote: "Summer Shores" },
-  6: { cover: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1", quote: "Sunray Peak" },
-  7: { cover: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d", quote: "North Woods" },
-  8: { cover: "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee", quote: "Golden Fields" },
-  9: { cover: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071", quote: "Copper Leaves" },
-  10: { cover: "https://images.unsplash.com/photo-1477601263568-180e2c6d046e", quote: "Misty Eve" },
-  11: { cover: "https://images.unsplash.com/photo-1512389142860-9c449e58a543", quote: "Starry Snow" },
+const THEME_DATA: Record<number, { pic: string; mood: string }> = {
+  0: { pic: "https://images.unsplash.com/photo-1517299321609-52687d1bc55a", mood: "Winter Calm" },
+  1: { pic: "https://images.unsplash.com/photo-1518199266791-5375a83190b7", mood: "Springing Up" },
+  2: { pic: "https://images.unsplash.com/photo-1522748906645-95d8adfd52c7", mood: "Cherry Petals" },
+  3: { pic: "https://images.unsplash.com/photo-1462275646964-a0e3386b89fa", mood: "Fresh Fields" },
+  4: { pic: "https://images.unsplash.com/photo-1500382017468-9049fed747ef", mood: "Garden Walk" },
+  5: { pic: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e", mood: "Beach Vibes" },
+  6: { pic: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1", mood: "Warm Sunset" },
+  7: { pic: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d", mood: "Forest Path" },
+  8: { pic: "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee", mood: "Golden Hour" },
+  9: { pic: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071", mood: "Autumn Drift" },
+  10: { pic: "https://images.unsplash.com/photo-1477601263568-180e2c6d046e", mood: "Misty Evening" },
+  11: { pic: "https://images.unsplash.com/photo-1512389142860-9c449e58a543", mood: "Snowy Night" },
 };
 
-const IMPORTANT_DATES: Record<string, string> = {
-  "01-01": "New Year's",
-  "02-14": "Valentine's",
+const FEAST_DAYS: Record<string, string> = {
+  "01-01": "New Year",
+  "02-14": "Valentine",
   "10-31": "Halloween",
   "12-25": "Christmas",
 };
 
 export default function Calendar() {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selection, setSelection] = useState<{ start: Date | null, end: Date | null }>({ start: null, end: null });
-  const [userMemos, setUserMemos] = useState<UserMemo[]>([]);
-  const [isEditorVisible, setIsEditorVisible] = useState(false);
-  const [activeMemoText, setActiveMemoText] = useState("");
+  const [viewedDate, setViewedDate] = useState(new Date());
+  const [currentSelection, setCurrentSelection] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
+  const [memos, setMemos] = useState<Note[]>([]);
+  const [isNoteDrawerOpen, setIsNoteDrawerOpen] = useState(false);
+  const [activeNoteText, setActiveNoteText] = useState("");
 
-  const activeMonthIndex = currentDate.getMonth();
-  const activeMeta = MONTH_METADATA[activeMonthIndex];
+  const currentMonthIdx = viewedDate.getMonth();
+  const currentMeta = THEME_DATA[currentMonthIdx];
 
   useEffect(() => {
-    const data = localStorage.getItem("calendar_data");
+    const data = localStorage.getItem("planner_memos");
     if (data) {
-      setUserMemos(JSON.parse(data).map((item: any) => ({ ...item, date: new Date(item.date) })));
+      setMemos(JSON.parse(data).map((m: any) => ({ ...m, date: new Date(m.date) })));
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("calendar_data", JSON.stringify(userMemos));
-  }, [userMemos]);
+    localStorage.setItem("planner_memos", JSON.stringify(memos));
+  }, [memos]);
 
-  const daysToRender = useMemo(() => {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(monthStart);
+  const datesToDisplay = useMemo(() => {
+    const start = startOfMonth(viewedDate);
     return eachDayOfInterval({
-      start: startOfWeek(monthStart),
-      end: endOfWeek(monthEnd),
+      start: startOfWeek(start),
+      end: endOfWeek(endOfMonth(start)),
     });
-  }, [currentDate]);
+  }, [viewedDate]);
 
-  const handleDateInteraction = (d: Date) => {
-    if (!selection.start || (selection.start && selection.end)) {
-      setSelection({ start: d, end: null });
+  const selectDate = (d: Date) => {
+    if (!currentSelection.start || (currentSelection.start && currentSelection.end)) {
+      setCurrentSelection({ start: d, end: null });
     } else {
-      if (d < selection.start) {
-        setSelection({ start: d, end: selection.start });
+      if (d < currentSelection.start) {
+        setCurrentSelection({ start: d, end: currentSelection.start });
       } else {
-        setSelection({ start: selection.start, end: d });
+        setCurrentSelection({ start: currentSelection.start, end: d });
       }
     }
   };
 
-  const navigateMonth = (direction: number) => {
-    setCurrentDate(addMonths(currentDate, direction));
+  const moveMonth = (val: number) => {
+    setViewedDate(addMonths(viewedDate, val));
   };
 
-  const saveMemo = () => {
-    if (!activeMemoText.trim() || !selection.start) return;
-    const memo: UserMemo = {
-      id: Math.random().toString(36).slice(2),
-      date: selection.start,
-      text: activeMemoText,
+  const addMemo = () => {
+    if (!activeNoteText.trim() || !currentSelection.start) return;
+    const newMemo: Note = {
+      id: Math.random().toString(36).slice(2, 9),
+      date: currentSelection.start,
+      content: activeNoteText,
     };
-    setUserMemos(prev => [...prev, memo]);
-    setActiveMemoText("");
-    setIsEditorVisible(false);
+    setMemos(prev => [...prev, newMemo]);
+    setActiveNoteText("");
+    setIsNoteDrawerOpen(false);
   };
 
-  const currentMonthMemos = userMemos.filter(m => isSameMonth(m.date, currentDate));
+  const getDayStatus = (d: Date) => {
+    const active = isSameMonth(d, viewedDate);
+    const start = currentSelection.start && isSameDay(d, currentSelection.start);
+    const end = currentSelection.end && isSameDay(d, currentSelection.end);
+    const inRange = currentSelection.start && currentSelection.end && isWithinInterval(d, { start: currentSelection.start, end: currentSelection.end });
+    return { active, start, end, inRange };
+  };
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col gap-12 select-none">
-      <GlobalEffects month={activeMonthIndex} />
+    <div className="flex flex-col gap-12 max-w-6xl mx-auto pb-20 relative">
+      <GlobalEffects month={currentMonthIdx} />
 
-      {/* Header Section */}
-      <header className="px-6 flex flex-col gap-6">
-        <div className="flex items-center gap-3 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.4em]">
-          <span>Notion</span>
-          <span className="opacity-30">/</span>
-          <span className="text-black dark:text-white">Planning</span>
+      <header className="px-6 flex flex-col gap-8">
+        <div className="flex items-center gap-3 text-[10px] font-black opacity-30 uppercase tracking-[0.5em]">
+          <span>Archive</span>
+          <span>/</span>
+          <span>Personal Space</span>
         </div>
 
-        <div className="flex items-center gap-8">
-          <div className="text-9xl">
-            {activeMonthIndex === 11 ? "🎁" : activeMonthIndex <= 1 ? "❄️" : activeMonthIndex <= 4 ? "🌸" : "⛱️"}
+        <div className="flex items-center gap-10">
+          <div className="text-9xl transition-transform hover:scale-105">
+            {currentMonthIdx === 2 || currentMonthIdx === 3 ? "🌸" :
+              currentMonthIdx >= 5 && currentMonthIdx <= 7 ? "🌊" :
+                currentMonthIdx >= 8 && currentMonthIdx <= 10 ? "🍂" : "❄️"}
           </div>
-          <div className="flex flex-col">
-            <h1 className="text-6xl font-black text-black dark:text-white tracking-tighter">
-              {format(currentDate, "MMMM yyyy")}
+          <div>
+            <h1 className="text-7xl font-black tracking-tighter leading-none mb-3">
+              {format(viewedDate, "MMMM yyyy")}
             </h1>
-            <p className="text-lg font-bold text-gray-400 dark:text-gray-500 mt-2 uppercase tracking-widest italic opacity-60">
-              "{activeMeta.quote}"
+            <p className="text-xl font-bold opacity-40 italic tracking-widest uppercase">
+              {currentMeta.mood}
             </p>
           </div>
         </div>
       </header>
 
-      {/* Banner Section */}
-      <section className="relative h-72 mx-6 rounded-[50px] overflow-hidden shadow-2xl bg-gray-100 dark:bg-white/5">
+      <section className="relative h-72 mx-6 rounded-[60px] overflow-hidden group shadow-2xl">
         <AnimatePresence mode="wait">
           <motion.img
-            key={activeMonthIndex}
-            initial={{ opacity: 0, scale: 1.05 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.7 }}
-            src={activeMeta.cover}
-            className="w-full h-full object-cover dark:brightness-[0.45] brightness-[0.85]"
+            key={currentMonthIdx}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+            src={currentMeta.pic}
+            className="w-full h-full object-cover grayscale-[30%] dark:grayscale-[50%] brightness-95 dark:brightness-40 group-hover:scale-105 transition-transform duration-[2s]"
           />
         </AnimatePresence>
-        <div className="absolute bottom-8 right-8 flex gap-4">
-          <button onClick={() => navigateMonth(-1)} className="p-4 rounded-[24px] bg-white/20 backdrop-blur-2xl border border-white/30 hover:bg-white/40 transition-all">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+        <div className="absolute bottom-10 right-10 flex gap-4">
+          <button onClick={() => moveMonth(-1)} className="p-4 rounded-[30px] bg-white/10 backdrop-blur-3xl border border-white/20 hover:bg-white/20 transition-all">
             <ChevronLeft className="w-8 h-8 text-white" />
           </button>
-          <button onClick={() => navigateMonth(1)} className="p-4 rounded-[24px] bg-white/20 backdrop-blur-2xl border border-white/30 hover:bg-white/40 transition-all">
+          <button onClick={() => moveMonth(1)} className="p-4 rounded-[30px] bg-white/10 backdrop-blur-3xl border border-white/20 hover:bg-white/20 transition-all">
             <ChevronRight className="w-8 h-8 text-white" />
           </button>
         </div>
       </section>
 
-      {/* Main Grid & Side Panels */}
-      <div className="flex flex-col lg:grid lg:grid-cols-[280px_1fr] gap-16 px-6">
-        <aside className="space-y-12">
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">Memos</h3>
-            <div className="space-y-6 max-h-[400px] overflow-y-auto pr-4">
-              {currentMonthMemos.length === 0 ? (
-                <p className="text-xs text-gray-400 font-bold opacity-30">No plans yet...</p>
+      <div className="grid lg:grid-cols-[300px_1fr] gap-20 px-6">
+        <aside className="space-y-16">
+          <div className="space-y-8">
+            <h3 className="text-[10px] font-black opacity-40 uppercase tracking-[0.5em]">Upcoming</h3>
+            <div className="space-y-8 max-h-[500px] overflow-y-auto custom-scrollbar pr-6">
+              {memos.filter(m => isSameMonth(m.date, viewedDate)).length === 0 ? (
+                <p className="text-xs font-bold opacity-20">Blank canvas...</p>
               ) : (
-                currentMonthMemos.map(m => (
-                  <div key={m.id} className="group">
-                    <span className="text-[10px] font-black text-indigo-500 mb-2 block">{format(m.date, "MMM dd")}</span>
-                    <p className="text-sm text-black dark:text-white leading-relaxed font-medium">{m.text}</p>
+                memos.filter(m => isSameMonth(m.date, viewedDate)).map(m => (
+                  <div key={m.id} className="relative group pl-5 border-l-2 border-indigo-500/20">
+                    <span className="text-[10px] font-black text-indigo-400 mb-2 block">{format(m.date, "MMM dd")}</span>
+                    <p className="text-sm font-medium leading-[1.6] opacity-90">{m.content}</p>
                   </div>
                 ))
               )}
             </div>
           </div>
 
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">Holidays</h3>
-            <div className="space-y-4">
-              {Object.entries(IMPORTANT_DATES).map(([key, value]) => {
-                const year = currentDate.getFullYear();
-                const d = new Date(`${year}-${key}`);
-                if (isSameMonth(d, currentDate)) {
+          <div className="space-y-8">
+            <h3 className="text-[10px] font-black opacity-40 uppercase tracking-[0.5em]">Holidays</h3>
+            <div className="space-y-5">
+              {Object.entries(FEAST_DAYS).map(([day, name]) => {
+                const yr = viewedDate.getFullYear();
+                const d = new Date(`${yr}-${day}`);
+                if (isSameMonth(d, viewedDate)) {
                   return (
-                    <div key={key} className="flex flex-col gap-1">
-                      <span className="text-sm font-black text-black dark:text-white">{value}</span>
-                      <span className="text-[10px] font-black text-rose-500 opacity-60 uppercase">{format(d, "MMMM do")}</span>
+                    <div key={day} className="flex flex-col gap-1">
+                      <span className="text-sm font-black">{name}</span>
+                      <span className="text-[10px] font-black text-rose-500 opacity-60">{format(d, "MMMM do")}</span>
                     </div>
                   );
                 }
@@ -200,48 +203,49 @@ export default function Calendar() {
           </div>
         </aside>
 
-        <main className="flex-1">
-          <div className="grid grid-cols-7 mb-12">
+        <main>
+          <div className="grid grid-cols-7 mb-16 px-4">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-              <div key={d} className="text-center text-[10px] font-black text-gray-300 dark:text-gray-600 uppercase tracking-[0.5em]">
+              <div key={d} className="text-center text-[10px] font-black opacity-20 uppercase tracking-[0.6em]">
                 {d}
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-y-6">
-            {daysToRender.map(day => {
-              const belongsToMonth = isSameMonth(day, currentDate);
-              const isStartOfRange = selection.start && isSameDay(day, selection.start);
-              const isEndOfRange = selection.end && isSameDay(day, selection.end);
-              const isCurrentRange = selection.start && selection.end && isWithinInterval(day, { start: selection.start, end: selection.end });
-              const isTodayDate = isToday(day);
-              const hasMemo = userMemos.some(m => isSameDay(m.date, day));
+          <div className="grid grid-cols-7 gap-y-10">
+            {datesToDisplay.map(day => {
+              const { active, start, end, inRange } = getDayStatus(day);
+              const isSelected = start || end;
+              const feast = FEAST_DAYS[format(day, "MM-dd")];
+              const memoCount = memos.filter(m => isSameDay(m.date, day)).length;
 
               return (
-                <div key={day.toISOString()} className="h-20 flex items-center justify-center">
+                <div key={day.toISOString()} className="h-16 flex items-center justify-center">
                   <button
-                    onClick={() => belongsToMonth && handleDateInteraction(day)}
+                    onClick={() => active && selectDate(day)}
                     className={cn(
-                      "w-14 h-14 rounded-[20px] flex flex-col items-center justify-center transition-all duration-300 relative",
-                      !belongsToMonth && "opacity-0 cursor-default",
-                      belongsToMonth && "hover:bg-gray-100 dark:hover:bg-white/10",
-                      (isStartOfRange || isEndOfRange) && "bg-black dark:bg-white text-white dark:text-black scale-110 z-10 shadow-xl",
-                      isCurrentRange && !(isStartOfRange || isEndOfRange) && "bg-gray-100 dark:bg-white/10",
-                      isTodayDate && !(isStartOfRange || isEndOfRange) && "border-2 border-indigo-500/30"
+                      "w-16 h-16 rounded-[24px] flex flex-col items-center justify-center transition-all duration-400 relative",
+                      !active && "opacity-0 cursor-default",
+                      active && "hover:bg-gray-100 dark:hover:bg-white/5",
+                      isSelected && "bg-black dark:bg-white scale-110 z-10 shadow-3xl",
+                      inRange && !isSelected && "bg-gray-50 dark:bg-white/5",
+                      isToday(day) && !isSelected && "ring-2 ring-indigo-500/20"
                     )}
                   >
                     <span className={cn(
-                      "text-lg font-black",
-                      (isStartOfRange || isEndOfRange)
-                        ? (isStartOfRange || isEndOfRange) && selection.start && selection.end ? "text-white dark:text-black" : "text-white dark:text-black"
-                        : (isTodayDate ? "text-indigo-600 dark:text-indigo-400" : "text-black dark:text-white")
+                      "text-xl font-black",
+                      isSelected ? "text-white dark:text-black" : (isToday(day) ? "text-indigo-500" : "")
                     )}>
                       {format(day, "d")}
                     </span>
 
-                    {hasMemo && !isStartOfRange && !isEndOfRange && (
-                      <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
+                    {memoCount > 0 && !isSelected && (
+                      <div className="absolute bottom-2.5 w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                    )}
+                    {feast && active && (
+                      <div className="absolute top-1 right-2 p-1">
+                        <Sparkles className="w-2.5 h-2.5 text-rose-400 opacity-40" />
+                      </div>
                     )}
                   </button>
                 </div>
@@ -249,65 +253,64 @@ export default function Calendar() {
             })}
           </div>
 
-          <div className="mt-16 flex items-center justify-between border-t border-gray-100 dark:border-white/5 pt-10">
-            <div className="text-xs font-black text-gray-400 uppercase tracking-widest">
-              {selection.start ? (
-                selection.end ? `${format(selection.start, "MMM dd")} - ${format(selection.end, "MMM dd")}` : format(selection.start, "MMMM dd, yyyy")
-              ) : "Select a time"}
+          <footer className="mt-20 pt-12 border-t border-gray-100 dark:border-white/5 flex items-center justify-between px-4">
+            <div className="text-[10px] font-black opacity-40 uppercase tracking-[0.3em]">
+              {currentSelection.start ? (
+                currentSelection.end ? `${format(currentSelection.start, "MMM dd")} - ${format(currentSelection.end, "MMM dd")}` : format(currentSelection.start, "MMMM dd, yyyy")
+              ) : "Select a date"}
             </div>
-
-            <div className="flex gap-8">
-              {selection.start && (
+            <div className="flex gap-10">
+              {currentSelection.start && (
                 <button
-                  onClick={() => setIsEditorVisible(true)}
-                  className="px-8 py-3 bg-black dark:bg-white text-white dark:text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
+                  onClick={() => setIsNoteDrawerOpen(true)}
+                  className="px-10 py-4 bg-black dark:bg-white text-white dark:text-black rounded-[22px] text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl"
                 >
-                  Write Memo
+                  New Plan
                 </button>
               )}
-              {selection.start && (
+              {currentSelection.start && (
                 <button
-                  onClick={() => setSelection({ start: null, end: null })}
-                  className="text-[10px] font-black text-gray-400 hover:text-black dark:hover:text-white transition-colors uppercase tracking-widest"
+                  onClick={() => setCurrentSelection({ start: null, end: null })}
+                  className="text-[10px] font-black opacity-40 hover:opacity-100 transition-opacity uppercase tracking-widest"
                 >
-                  Reset
+                  Clear
                 </button>
               )}
             </div>
-          </div>
+          </footer>
         </main>
       </div>
 
       <AnimatePresence>
-        {isEditorVisible && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-8">
+        {isNoteDrawerOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-10">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/50 backdrop-blur-xl"
-              onClick={() => setIsEditorVisible(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-2xl"
+              onClick={() => setIsNoteDrawerOpen(false)}
             />
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-sm bg-white dark:bg-[#121212] p-12 rounded-[50px] shadow-2xl"
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 50 }}
+              className="relative w-full max-w-sm bg-white dark:bg-[#111111] p-12 rounded-[60px] shadow-3xl overflow-hidden"
             >
-              <h4 className="text-2xl font-black mb-10 dark:text-white">New Memo</h4>
+              <h2 className="text-3xl font-black tracking-tighter mb-10">New Memo</h2>
               <textarea
                 autoFocus
-                value={activeMemoText}
-                onChange={e => setActiveMemoText(e.target.value)}
-                placeholder="Details..."
-                className="w-full h-48 p-8 bg-gray-50 dark:bg-white/5 rounded-[30px] resize-none border-none focus:ring-1 focus:ring-black dark:focus:ring-white text-base dark:text-white font-medium"
+                value={activeNoteText}
+                onChange={e => setActiveNoteText(e.target.value)}
+                placeholder="What's the plan?"
+                className="w-full h-48 p-8 bg-gray-50 dark:bg-white/5 rounded-[36px] resize-none border-none focus:ring-1 focus:ring-black dark:focus:ring-white text-lg font-medium"
               />
-              <div className="flex gap-4 mt-12">
-                <button onClick={saveMemo} className="flex-1 py-4 bg-black dark:bg-white text-white dark:text-black rounded-[24px] text-xs font-black uppercase tracking-widest">
+              <div className="flex gap-5 mt-12">
+                <button onClick={addMemo} className="flex-1 py-5 bg-black dark:bg-white text-white dark:text-black rounded-[28px] text-sm font-black uppercase tracking-widest">
                   Save
                 </button>
-                <button onClick={() => setIsEditorVisible(false)} className="px-6 py-4 bg-gray-100 dark:bg-white/5 text-gray-500 rounded-[24px] text-xs font-black uppercase tracking-widest">
-                  Close
+                <button onClick={() => setIsNoteDrawerOpen(false)} className="px-8 py-5 bg-gray-100 dark:bg-white/5 opacity-50 rounded-[28px] text-sm font-black uppercase tracking-widest">
+                  Back
                 </button>
               </div>
             </motion.div>

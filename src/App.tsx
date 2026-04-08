@@ -1,47 +1,60 @@
 import { useState, useEffect } from 'react';
 import Calendar from "@/src/components/Calendar/Calendar";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Sparkles } from "lucide-react";
 
 export default function App() {
-  const [mode, setMode] = useState<'light' | 'dark'>(() => {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('theme-mode') as 'light' | 'dark';
+      const stored = localStorage.getItem('app-theme') as 'light' | 'dark';
       return stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     }
     return 'light';
   });
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', mode);
-    localStorage.setItem('theme-mode', mode);
-    if (mode === 'dark') {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('app-theme', theme);
+    if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [mode]);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   return (
-    <div className="min-h-screen transition-colors duration-500 selection:bg-indigo-100">
-      <nav className="max-w-7xl mx-auto p-6 flex justify-between items-center border-b border-gray-100 dark:border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold">L</div>
-          <span className="text-xs font-bold uppercase tracking-widest opacity-60">Luminar</span>
+    <div className="min-h-screen transition-all duration-500 ease-in-out">
+      <nav className="max-w-[1400px] mx-auto p-10 flex justify-between items-center bg-transparent relative z-50">
+        <div className="flex items-center gap-4 group cursor-pointer">
+          <div className="relative">
+            <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
+            <div className="w-12 h-12 rounded-2xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black relative z-10 shadow-2xl">
+              <Sparkles className="w-6 h-6 animate-pulse" />
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-black uppercase tracking-[0.3em] leading-tight">Luminar</span>
+            <span className="text-[10px] font-bold opacity-30 uppercase tracking-[0.2em]">Planner</span>
+          </div>
         </div>
+
         <button
-          onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}
-          className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+          onClick={toggleTheme}
+          className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-white/5 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm border border-gray-100 dark:border-white/5"
         >
-          {mode === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+          {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
         </button>
       </nav>
 
-      <main className="py-12 px-6">
-        <Calendar />
+      <main className="relative">
+        <div className="max-w-[1400px] mx-auto py-10">
+          <Calendar />
+        </div>
       </main>
 
-      <footer className="max-w-7xl mx-auto py-12 px-6 text-center opacity-30 select-none">
-        <p className="text-[10px] font-bold uppercase tracking-[0.3em]">Luminar • Crafted with care</p>
+      <footer className="py-20 text-center select-none">
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] opacity-20">Luminar Calendar • Eternal Design</p>
       </footer>
     </div>
   );

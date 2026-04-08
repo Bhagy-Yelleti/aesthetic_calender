@@ -8,13 +8,17 @@
 :root {
   --app-bg: #FFFFFF;
   --app-text: #000000;
-  --card-bg: #F9F9F9;
+  --app-dim: #999999;
+  --accent: #6366F1;
+  --card-hover: #F8F8F8;
 }
 
 [data-theme='dark'] {
-  --app-bg: #121212;
-  --app-text: #FFFFFF;
-  --card-bg: #1A1A1A;
+  --app-bg: #0A0A0A;
+  --app-text: #F0F0F0;
+  --app-dim: #666666;
+  --accent: #818CF8;
+  --card-hover: #151515;
 }
 
 body {
@@ -22,11 +26,23 @@ body {
   color: var(--app-text);
   @apply antialiased overflow-x-hidden;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/* Ensure text is always using the variable */
+h1,
+h2,
+h3,
+h4,
+span,
+p,
+div,
+button {
+  color: inherit;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -34,18 +50,12 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.15);
+  background: var(--app-dim);
+  opacity: 0.2;
   border-radius: 20px;
 }
 
 ::selection {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-[data-theme='dark'] ::selection {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.notion-card {
-  transition: all 0.4s ease;
+  background: var(--accent);
+  color: white;
 }
