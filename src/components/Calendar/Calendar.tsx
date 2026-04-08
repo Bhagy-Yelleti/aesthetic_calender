@@ -1,8 +1,13 @@
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isWithinInterval, addMonths, subMonths, isToday } from "date-fns";
 import { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, StickyNote, Plus, Trash2, Image as ImageIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, StickyNote, Plus, Trash2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/src/lib/utils";
+import {
+  Snow, FloatingHearts, CherryBlossoms, Butterflies, Dandelions,
+  OceanVibes, GoldenHour, CanadianMapleStreet, HarvestSeason,
+  Halloween, FirstSnow, ChristmasMagic
+} from "./animations";
 
 // Types
 interface Note {
@@ -16,285 +21,22 @@ interface CalendarProps {
   className?: string;
 }
 
-const MONTH_THEMES: Record<number, { image: string; accent: string; bg: string }> = {
-  0: { image: "https://images.unsplash.com/photo-1491555103944-7c647fd857e6", accent: "blue", bg: "bg-blue-50" }, // Jan - Icy Lake
-  1: { image: "https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22", accent: "slate", bg: "bg-slate-50" }, // Feb - Snowy Cabin
-  2: { image: "https://images.unsplash.com/photo-1462275646964-a0e3386b89fa", accent: "pink", bg: "bg-pink-50" }, // Mar - Sakura
-  3: { image: "https://images.unsplash.com/photo-1490750967868-88aa4486c946", accent: "yellow", bg: "bg-yellow-50" }, // Apr - Daffodils
-  4: { image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef", accent: "emerald", bg: "bg-emerald-50" }, // May - Green Field
-  5: { image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e", accent: "cyan", bg: "bg-cyan-50" }, // Jun - Tropical Beach
-  6: { image: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0", accent: "blue", bg: "bg-blue-50" }, // Jul - Rainy Window
-  7: { image: "https://images.unsplash.com/photo-1476820865390-c59aeeb9e191", accent: "red", bg: "bg-red-50" }, // Aug - Canadian Maple Scenery
-  8: { image: "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee", accent: "amber", bg: "bg-amber-50" }, // Sep - Golden Leaf
-  9: { image: "https://images.unsplash.com/photo-1503435980610-a51f3ddfee50", accent: "orange", bg: "bg-orange-50" }, // Oct - Autumn
-  10: { image: "https://images.unsplash.com/photo-1454496522488-7a8e488e8606", accent: "indigo", bg: "bg-indigo-50" }, // Nov - First Snow
-  11: { image: "https://images.unsplash.com/photo-1512389142860-9c449e58a543", accent: "slate", bg: "bg-slate-50" }, // Dec - Christmas Lights
+const MONTH_THEMES: Record<number, { image: string; accent: string; bg: string; label: string }> = {
+  0:  { image: "https://images.unsplash.com/photo-1517299321609-52687d1bc55a", accent: "blue",    bg: "bg-blue-50",    label: "Frozen Wilderness" },
+  1:  { image: "https://images.unsplash.com/photo-1518199266791-5375a83190b7", accent: "rose",    bg: "bg-rose-50",    label: "Valentine Bloom" },
+  2:  { image: "https://images.unsplash.com/photo-1522748906645-95d8adfd52c7", accent: "pink",    bg: "bg-pink-50",    label: "Cherry Blossom Lane" },
+  3:  { image: "https://images.unsplash.com/photo-1462275646964-a0e3386b89fa", accent: "yellow",  bg: "bg-yellow-50",  label: "Spring Awakening" },
+  4:  { image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef", accent: "emerald", bg: "bg-emerald-50", label: "Emerald Fields" },
+  5:  { image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e", accent: "cyan",    bg: "bg-cyan-50",    label: "Endless Summer" },
+  6:  { image: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1", accent: "sky",     bg: "bg-sky-50",     label: "Golden Hour" },
+  7:  { image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d", accent: "red",     bg: "bg-red-50",     label: "Canadian Maple Street" },
+  8:  { image: "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee", accent: "amber",   bg: "bg-amber-50",   label: "Harvest Season" },
+  9:  { image: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071", accent: "orange",  bg: "bg-orange-50",  label: "Autumn Fire" },
+  10: { image: "https://images.unsplash.com/photo-1477601263568-180e2c6d046e", accent: "indigo",  bg: "bg-indigo-50",  label: "First Snowfall" },
+  11: { image: "https://images.unsplash.com/photo-1512389142860-9c449e58a543", accent: "violet",  bg: "bg-violet-50",  label: "Winter Magic" },
 };
 
 const NOTE_COLORS = ["bg-yellow-100", "bg-blue-100", "bg-green-100", "bg-pink-100", "bg-purple-100"];
-
-const CherryBlossoms = () => {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-      {[...Array(15)].map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ 
-            top: -20, 
-            left: `${Math.random() * 100}%`,
-            rotate: 0,
-            opacity: 0 
-          }}
-          animate={{ 
-            top: "110%", 
-            left: `${(Math.random() * 100) + (Math.random() * 20 - 10)}%`,
-            rotate: 360,
-            opacity: [0, 1, 1, 0]
-          }}
-          transition={{ 
-            duration: 5 + Math.random() * 5, 
-            repeat: Infinity, 
-            delay: Math.random() * 10,
-            ease: "linear"
-          }}
-          className="absolute w-3 h-3 bg-pink-200 rounded-full opacity-60 blur-[1px]"
-          style={{ 
-            borderRadius: "40% 60% 60% 40% / 40% 40% 60% 60%",
-            boxShadow: "0 0 10px rgba(255, 182, 193, 0.5)"
-          }}
-        />
-      ))}
-    </div>
-  );
-};
-
-const Snow = () => {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-      {[...Array(30)].map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ top: -20, left: `${Math.random() * 100}%`, opacity: 0 }}
-          animate={{ top: "110%", left: `${(Math.random() * 100) + (Math.random() * 10 - 5)}%`, opacity: [0, 1, 1, 0] }}
-          transition={{ duration: 3 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 5, ease: "linear" }}
-          className="absolute w-1.5 h-1.5 bg-white rounded-full blur-[1px]"
-        />
-      ))}
-    </div>
-  );
-};
-
-const WalkingPeople = () => (
-  <div className="absolute bottom-10 left-0 w-full h-20 pointer-events-none z-30 overflow-hidden">
-    {[...Array(3)].map((_, i) => (
-      <motion.div
-        key={i}
-        initial={{ x: -100, opacity: 0 }}
-        animate={{ 
-          x: "110vw", 
-          opacity: [0, 1, 1, 0] 
-        }}
-        transition={{ 
-          duration: 25 + Math.random() * 10, 
-          repeat: Infinity, 
-          delay: i * 8,
-          ease: "linear"
-        }}
-        className="absolute bottom-0 flex flex-col items-center"
-      >
-        <div className="w-3 h-3 bg-gray-800 rounded-full mb-0.5" />
-        <div className="w-5 h-8 bg-indigo-600 rounded-t-md" />
-      </motion.div>
-    ))}
-  </div>
-);
-
-const Snowman = () => (
-  <motion.div 
-    initial={{ y: 20, opacity: 0 }}
-    animate={{ y: 0, opacity: 1 }}
-    className="absolute bottom-10 right-10 z-30 flex flex-col items-center"
-  >
-    <div className="w-12 h-12 bg-white rounded-full shadow-inner relative">
-      <div className="absolute top-4 left-3 w-1.5 h-1.5 bg-black rounded-full" />
-      <div className="absolute top-4 right-3 w-1.5 h-1.5 bg-black rounded-full" />
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[8px] border-t-orange-500 rotate-180" />
-    </div>
-    <div className="w-16 h-16 bg-white rounded-full -mt-2 shadow-inner relative">
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-col gap-2">
-        <div className="w-1.5 h-1.5 bg-black rounded-full" />
-        <div className="w-1.5 h-1.5 bg-black rounded-full" />
-      </div>
-    </div>
-  </motion.div>
-);
-
-const Hiker = () => (
-  <motion.div
-    initial={{ x: -20, y: 100, opacity: 0 }}
-    animate={{ 
-      x: [0, 20, 40, 60], 
-      y: [100, 80, 60, 40],
-      opacity: 1 
-    }}
-    transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-    className="absolute bottom-20 left-10 z-30"
-  >
-    <div className="relative">
-      <div className="w-4 h-4 bg-gray-800 rounded-full mb-1" />
-      <div className="w-6 h-8 bg-blue-600 rounded-t-lg relative">
-        <div className="absolute -right-2 top-2 w-4 h-1 bg-gray-800 rotate-45" /> {/* Walking stick */}
-      </div>
-    </div>
-  </motion.div>
-);
-
-const Rain = () => {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-      {[...Array(40)].map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ top: -50, left: `${Math.random() * 100}%`, opacity: 0 }}
-          animate={{ top: "110%", opacity: [0, 0.4, 0.4, 0] }}
-          transition={{ duration: 0.8 + Math.random() * 0.5, repeat: Infinity, delay: Math.random() * 2, ease: "linear" }}
-          className="absolute w-[1px] h-10 bg-blue-200/40"
-          style={{ transform: "rotate(15deg)" }}
-        />
-      ))}
-      {/* Splatter effect at the bottom */}
-      {[...Array(10)].map((_, i) => (
-        <motion.div
-          key={`splat-${i}`}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: [0, 0.5, 0], scale: [0, 1.5, 0] }}
-          transition={{ duration: 0.5, repeat: Infinity, delay: Math.random() * 2 }}
-          className="absolute bottom-0 w-4 h-1 bg-blue-200/30 rounded-full blur-[2px]"
-          style={{ left: `${Math.random() * 100}%` }}
-        />
-      ))}
-    </div>
-  );
-};
-
-const MapleLeaves = () => {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-      {[...Array(15)].map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ top: -20, left: `${Math.random() * 100}%`, rotate: 0, opacity: 0 }}
-          animate={{ 
-            top: "110%", 
-            left: `${(Math.random() * 100) + (Math.random() * 40 - 20)}%`,
-            rotate: 720,
-            opacity: [0, 1, 1, 0]
-          }}
-          transition={{ duration: 7 + Math.random() * 7, repeat: Infinity, delay: Math.random() * 10, ease: "easeInOut" }}
-          className="absolute w-6 h-6"
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" className="text-red-600/60 w-full h-full">
-            <path d="M12 2L10.5 8.5L4 7L6 12L2 13L6 14L4 19L10.5 17.5L12 22L13.5 17.5L20 19L18 14L22 13L18 12L20 7L13.5 8.5L12 2Z" />
-          </svg>
-        </motion.div>
-      ))}
-    </div>
-  );
-};
-
-const Butterflies = () => {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-      {[...Array(6)].map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ x: -50, y: Math.random() * 100 + "%", opacity: 0 }}
-          animate={{ 
-            x: "110vw", 
-            y: [Math.random() * 100 + "%", Math.random() * 100 + "%", Math.random() * 100 + "%"],
-            opacity: [0, 1, 1, 0]
-          }}
-          transition={{ duration: 15 + Math.random() * 10, repeat: Infinity, delay: Math.random() * 10 }}
-          className="absolute w-4 h-4 flex gap-0.5"
-        >
-          <motion.div 
-            animate={{ rotateY: [0, 80, 0] }} 
-            transition={{ duration: 0.2, repeat: Infinity }}
-            className="w-2 h-4 bg-yellow-400 rounded-full" 
-          />
-          <motion.div 
-            animate={{ rotateY: [0, 80, 0] }} 
-            transition={{ duration: 0.2, repeat: Infinity, delay: 0.1 }}
-            className="w-2 h-4 bg-yellow-400 rounded-full" 
-          />
-        </motion.div>
-      ))}
-    </div>
-  );
-};
-
-const Dandelions = () => {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-      {[...Array(20)].map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ top: "110%", left: `${Math.random() * 100}%`, opacity: 0 }}
-          animate={{ 
-            top: "-10%", 
-            left: `${(Math.random() * 100) + (Math.random() * 20 - 10)}%`,
-            opacity: [0, 0.8, 0.8, 0]
-          }}
-          transition={{ duration: 8 + Math.random() * 8, repeat: Infinity, delay: Math.random() * 10, ease: "linear" }}
-          className="absolute w-1 h-1 bg-white rounded-full blur-[0.5px]"
-        />
-      ))}
-    </div>
-  );
-};
-
-const FallingLeaves = () => {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-      {[...Array(12)].map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ top: -20, left: `${Math.random() * 100}%`, rotate: 0, opacity: 0 }}
-          animate={{ 
-            top: "110%", 
-            left: `${(Math.random() * 100) + (Math.random() * 40 - 20)}%`,
-            rotate: 720,
-            opacity: [0, 1, 1, 0]
-          }}
-          transition={{ duration: 6 + Math.random() * 6, repeat: Infinity, delay: Math.random() * 10, ease: "easeInOut" }}
-          className="absolute w-4 h-4"
-        >
-          <div className="w-full h-full bg-orange-600/60 rounded-full" style={{ borderRadius: "0 100% 0 100%" }} />
-        </motion.div>
-      ))}
-    </div>
-  );
-};
-
-const Sunbeams = () => {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-      {[...Array(8)].map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: [0, 0.2, 0], scale: [0, 1.5, 0] }}
-          transition={{ duration: 4 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 5 }}
-          className="absolute w-32 h-32 bg-yellow-200/20 rounded-full blur-3xl"
-          style={{ 
-            top: `${Math.random() * 100}%`, 
-            left: `${Math.random() * 100}%` 
-          }}
-        />
-      ))}
-    </div>
-  );
-};
 
 export default function Calendar({ className }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -354,7 +96,6 @@ export default function Calendar({ className }: CalendarProps) {
   };
   const prevMonth = () => {
     setDirection(-1);
-    setCurrentDate(subMonths(currentDate, -1)); // Wait, subMonths(d, 1) is correct, subMonths(d, -1) is like addMonths
     setCurrentDate(subMonths(currentDate, 1));
   };
 
@@ -466,27 +207,19 @@ export default function Calendar({ className }: CalendarProps) {
               {/* Seasonal Animations */}
               {(() => {
                 const month = currentDate.getMonth();
-                const animations = [];
-                if (month === 0 || month === 1) animations.push(<Snow key="snow" />);
-                if (month === 2) animations.push(<CherryBlossoms key="cherry" />);
-                if (month === 3) animations.push(<Butterflies key="butterflies" />);
-                if (month === 4) animations.push(<Dandelions key="dandelions" />);
-                if (month === 5) animations.push(<Sunbeams key="sun" />);
-                if (month === 6) animations.push(<Rain key="rain" />);
-                if (month === 7) {
-                  animations.push(<MapleLeaves key="maple" />);
-                  animations.push(<WalkingPeople key="walking" />);
-                }
-                if (month === 8 || month === 9) animations.push(<FallingLeaves key="leaves" />);
-                if (month === 10) {
-                  animations.push(<Snow key="snow" />);
-                  animations.push(<Hiker key="hiker" />);
-                }
-                if (month === 11) {
-                  animations.push(<Snow key="snow" />);
-                  animations.push(<Snowman key="snowman" />);
-                }
-                return animations;
+                if (month === 0)  return <Snow key="snow-jan" />;
+                if (month === 1)  return <><Snow key="snow-feb" /><FloatingHearts key="hearts" /></>;
+                if (month === 2)  return <CherryBlossoms key="cherry" />;
+                if (month === 3)  return <Butterflies key="butterflies" />;
+                if (month === 4)  return <Dandelions key="dandelions" />;
+                if (month === 5)  return <OceanVibes key="ocean" />;
+                if (month === 6)  return <GoldenHour key="golden" />;
+                if (month === 7)  return <CanadianMapleStreet key="maple-street" />;
+                if (month === 8)  return <HarvestSeason key="harvest" />;
+                if (month === 9)  return <Halloween key="halloween" />;
+                if (month === 10) return <FirstSnow key="firstsnow" />;
+                if (month === 11) return <ChristmasMagic key="xmas" />;
+                return null;
               })()}
             </motion.div>
           </AnimatePresence>
@@ -509,6 +242,14 @@ export default function Calendar({ className }: CalendarProps) {
               >
                 {format(currentDate, "MMMM")}
               </motion.h1>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.7 }}
+                key={`label-${currentDate.getMonth()}`}
+                className="text-sm mt-2 tracking-widest uppercase font-light"
+              >
+                {currentTheme.label}
+              </motion.p>
             </div>
 
             <div className="space-y-6">
