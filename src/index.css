@@ -1,10 +1,89 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* System Dark/Light Mode support */
+  --color-notion-bg: light-dark(#FFFFFF, #191919);
+  --color-notion-sidebar: light-dark(#F7F7F5, #202020);
+  --color-notion-border: light-dark(#EDEEEE, #2A2A2A);
+  --color-notion-text: light-dark(#37352F, #D1D1D1);
+  --color-notion-subtle: light-dark(#F1F1F0, #2C2C2C);
+}
+
+:root {
+  --surface-bg: #FFFFFF;
+  --surface-hover: #F1F1F0;
+  --border-color: #EDEEEE;
+  --text-main: #37352F;
+  --text-dim: #787774;
+}
+
+[data-theme='dark'] {
+  --surface-bg: #202020;
+  --surface-hover: #2C2C2C;
+  --border-color: #2F2F2F;
+  --text-main: #E1E1E1;
+  --text-dim: #929292;
 }
 
 body {
-  @apply bg-[#f8f9fa] antialiased;
+  background-color: var(--surface-bg);
+  color: var(--text-main);
+  @apply antialiased selection:bg-indigo-100;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.notion-card {
+  background-color: var(--surface-bg);
+  border: 1px solid var(--border-color);
+  @apply shadow-[0px_1px_2px_rgba(0, 0, 0, 0.05)] rounded-xl transition-all duration-200;
+}
+
+.notion-card:hover {
+  @apply shadow-[0px_4px_12px_rgba(0, 0, 0, 0.1)];
+}
+
+.notion-sidebar {
+  background-color: light-dark(#F7F7F5, #202020);
+}
+
+.cutesy-button {
+  background-color: var(--surface-hover);
+  @apply px-4 py-2 rounded-lg font-medium transition-all active:scale-95 flex items-center gap-2;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: light-dark(#E1E1E0, #3E3E3E);
+  border-radius: 10px;
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.glass-panel {
+  @apply backdrop-blur-md bg-white/70 dark:bg-black/40 border border-white/20 dark:border-white/10;
 }
