@@ -8,29 +8,25 @@
 :root {
   --app-bg: #FFFFFF;
   --app-text: #000000;
-  --app-dim: #999999;
+  --card-bg: #F9F9F9;
 }
 
 [data-theme='dark'] {
-  --app-bg: #0F0F0F;
+  --app-bg: #121212;
   --app-text: #FFFFFF;
-  --app-dim: #555555;
+  --card-bg: #1A1A1A;
 }
 
 body {
   background-color: var(--app-bg);
   color: var(--app-text);
-  @apply antialiased;
+  @apply antialiased overflow-x-hidden;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  transition: background-color 0.4s ease;
-}
-
-.notion-card {
-  @apply rounded-[32px] transition-all duration-300;
+  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -38,10 +34,18 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.2);
-  border-radius: 10px;
+  background: rgba(128, 128, 128, 0.15);
+  border-radius: 20px;
 }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.2);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] ::selection {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.notion-card {
+  transition: all 0.4s ease;
 }
