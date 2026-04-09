@@ -10,398 +10,658 @@ import {
   isWithinInterval,
   addMonths,
   isToday,
-  isBefore
+  isBefore,
 } from "date-fns";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  StickyNote,
-  Calendar as CalendarIcon,
+  BookOpen,
+  CalendarDays,
   Trash2,
   X,
-  ArrowRight
+  ArrowRight,
+  MoveRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/src/lib/utils";
 import { GlobalEffects } from "./animations";
 import { MONTHS_THEMES } from "@/src/lib/themes";
 
-interface RangeNote {
-  id: string;
-  start: Date;
-  end: Date;
-  content: string;
-  category: string;
+/* ─── Types ───────────────────────────────────────────────────── */
+interface DateRange {
+  start: Date | null;
+  end: Date | null;
 }
 
+interface RangeNote {
+  id: string;
+  start: string; // ISO string — safe for JSON
+  end: string;
+  content: string;
+}
+
+/* ─── Constants ───────────────────────────────────────────────── */
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+const STORAGE_KEY = "luminar_notes_v4";
+
+/* ─── Helpers ─────────────────────────────────────────────────── */
+function noteStartDate(n: RangeNote) { return new Date(n.start); }
+function noteEndDate(n: RangeNote) { return new Date(n.end); }
+
+/* ─── Sub-components ──────────────────────────────────────────── */
+
+interface DayCellProps {
+  day: Date;
+  inMonth: boolean;
+  isStart: boolean;
+  isEnd: boolean;
+  isInRange: boolean;
+  isPreview: boolean;
+  hasNote: boolean;
+  isToday: boolean;
+  isRangeStart: boolean; // first day of week / first of range — for pill rounding
+  isRangeEnd: boolean;
+  onClick: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}
+
+function DayCell({
+  day, inMonth, isStart, isEnd, isInRange, isPreview,
+  hasNote, isToday: today, onClick, onMouseEnter, onMouseLeave,
+}: DayCellProps) {
+  const isMarker = isStart || isEnd;
+
+  return (
+    <div className="relative flex items-center justify-center">
+      {/* Range / preview strip — rendered behind the button */}
+      {(isInRange || isPreview) && inMonth && (
+        <div
+          className={cn(
+            "absolute inset-y-0 left-0 right-0 pointer-events-none",
+            isPreview ? "bg-[var(--accent-light)] opacity-60" : "bg-[var(--accent-light)]",
+            isStart && "left-1/2 rounded-r-none",
+            isEnd && "right-1/2 rounded-l-none",
+          )}
+        />
+      )}
+
+      <motion.button
+        type="button"
+        aria-label={format(day, "MMMM d, yyyy")}
+        aria-pressed={isMarker}
+        whileHover={inMonth ? { y: -3, scale: 1.06 } : {}}
+        whileTap={inMonth ? { scale: 0.92 } : {}}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        onClick={inMonth ? onClick : undefined}
+        onMouseEnter={inMonth ? onMouseEnter : undefined}
+        onMouseLeave={inMonth ? onMouseLeave : undefined}
+        className={cn(
+          // base
+          "relative z-10 w-10 h-10 md:w-12 md:h-12 rounded-full flex flex-col items-center justify-center",
+          "transition-all duration-[180ms] outline-none",
+          // not in month
+          !inMonth && "opacity-0 pointer-events-none",
+          // hover (only for non-markers)
+          inMonth && !isMarker && "hover:bg-gray-100 dark:hover:bg-white/8",
+          // today ring
+          today && !isMarker && "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--surface)]",
+          // marker — selected start/end
+          isMarker && [
+            "text-white shadow-[0_4px_16px_rgba(99,102,241,0.45)]",
+            "bg-[var(--accent)] scale-105 animate-pop",
+          ],
+          // focus ring for keyboard navigation
+          "focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2",
+        )}
+      >
+        <span className={cn(
+          "text-base font-display font-bold leading-none select-none",
+          isMarker ? "text-white" : today ? "text-[var(--accent)] font-black" : "text-[var(--text)]",
+        )}>
+          {format(day, "d")}
+        </span>
+
+        {/* Note indicator dot */}
+        {hasNote && !isMarker && (
+          <span className="absolute bottom-1.5 w-1 h-1 rounded-full bg-[var(--accent)]" />
+        )}
+      </motion.button>
+    </div>
+  );
+}
+
+/* ─── Notes Panel ─────────────────────────────────────────────── */
+interface NotesPanelProps {
+  notes: RangeNote[];
+  range: DateRange;
+  onDelete: (id: string) => void;
+  onAddNote: () => void;
+}
+
+function NotesPanel({ notes, range, onDelete, onAddNote }: NotesPanelProps) {
+  const hasRange = range.start && range.end;
+
+  return (
+    <div className="card card-layered rounded-[40px] p-8 md:p-10 flex flex-col gap-8 min-h-[360px]">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-[var(--accent-light)] flex items-center justify-center">
+            <BookOpen className="w-4 h-4 text-[var(--accent)]" />
+          </div>
+          <h3 className="font-display font-black text-xl tracking-tight text-[var(--text)]">
+            Memory Ledger
+          </h3>
+        </div>
+        <span className="px-3 py-1 rounded-full bg-gray-100 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-[var(--text-dim)]">
+          {notes.length} saved
+        </span>
+      </div>
+
+      {/* Active range context */}
+      <AnimatePresence mode="wait">
+        {hasRange && (
+          <motion.div
+            key="range-ctx"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex items-center justify-between px-5 py-4 rounded-2xl border border-[var(--border)] bg-[var(--accent-light)]"
+          >
+            <span className="flex items-center gap-2 text-sm font-bold text-[var(--accent)]">
+              <span>{format(range.start!, "MMM d")}</span>
+              <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+              <span>{format(range.end!, "MMM d, yyyy")}</span>
+            </span>
+            <button
+              onClick={onAddNote}
+              className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] hover:underline transition-all"
+            >
+              + Add
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin space-y-5 pr-1">
+        <AnimatePresence>
+          {notes.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="h-full flex flex-col items-center justify-center text-center py-12 gap-4 text-[var(--text-dim)]"
+            >
+              <CalendarDays className="w-12 h-12 opacity-20 stroke-[1.2]" />
+              <p className="text-sm font-semibold opacity-50 leading-snug">
+                Select a date range<br />to add your notes
+              </p>
+            </motion.div>
+          ) : (
+            notes.map((note) => (
+              <motion.div
+                key={note.id}
+                layout
+                initial={{ opacity: 0, scale: 0.97, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.97, y: -8 }}
+                transition={{ duration: 0.18 }}
+                className="p-6 rounded-3xl border border-[var(--border)] bg-[var(--surface-2)] group hover:border-[var(--accent)] hover:shadow-md transition-all duration-200"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <span className="flex items-center gap-2 text-[11px] font-black text-[var(--accent)] uppercase tracking-widest">
+                    {format(noteStartDate(note), "MMM d")}
+                    <MoveRight className="w-3 h-3 opacity-40" />
+                    {format(noteEndDate(note), "MMM d")}
+                  </span>
+                  <button
+                    onClick={() => onDelete(note.id)}
+                    className="opacity-0 group-hover:opacity-100 p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
+                    aria-label="Delete note"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="text-sm font-medium leading-relaxed text-[var(--text)] opacity-80">
+                  {note.content}
+                </p>
+              </motion.div>
+            ))
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Note Creation Modal ─────────────────────────────────────── */
+interface NoteModalProps {
+  range: DateRange;
+  value: string;
+  onChange: (v: string) => void;
+  onSave: () => void;
+  onClose: () => void;
+}
+
+function NoteModal({ range, value, onChange, onSave, onClose }: NoteModalProps) {
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/70 backdrop-blur-2xl"
+        onClick={onClose}
+        aria-hidden
+      />
+      {/* Sheet */}
+      <motion.div
+        initial={{ scale: 0.96, y: 60, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        exit={{ scale: 0.96, y: 60, opacity: 0 }}
+        transition={{ duration: 0.22, ease: [0.34, 1.2, 0.64, 1] }}
+        className="relative w-full max-w-lg card rounded-[48px] p-10 md:p-14 shadow-2xl bg-[var(--surface)]"
+        role="dialog"
+        aria-modal
+        aria-labelledby="modal-title"
+      >
+        {/* Top row */}
+        <div className="flex items-start justify-between mb-8">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--accent)] mb-3 flex items-center gap-2">
+              <BookOpen className="w-3.5 h-3.5" />
+              Add Note
+            </p>
+            <h2 id="modal-title" className="text-3xl md:text-4xl font-display font-black tracking-tight text-[var(--text)] leading-none">
+              Notes for{" "}
+              <span className="text-[var(--accent)]">
+                {format(range.start!, "MMM d")}
+              </span>{" "}
+              →{" "}
+              <span className="text-[var(--accent)]">
+                {format(range.end!, "MMM d")}
+              </span>
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-3 rounded-2xl bg-gray-100 dark:bg-white/5 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-all"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Textarea with animated focus ring */}
+        <div className="relative mb-8 group">
+          <textarea
+            autoFocus
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="What's on your plate for this period?"
+            rows={5}
+            className={cn(
+              "w-full bg-gray-50 dark:bg-white/5 rounded-2xl px-5 py-4",
+              "text-base font-medium text-[var(--text)] placeholder:text-[var(--text-dim)] placeholder:opacity-50",
+              "border border-[var(--border)] resize-none outline-none",
+              "transition-all duration-200",
+              "focus:border-[var(--accent)] focus:shadow-[0_0_0_4px_var(--accent-light)]",
+              "scrollbar-thin",
+            )}
+          />
+        </div>
+
+        {/* Save */}
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={onSave}
+          disabled={!value.trim()}
+          className={cn(
+            "w-full py-5 rounded-3xl font-black uppercase tracking-[0.3em] text-sm text-white",
+            "bg-[var(--accent)] shadow-[0_8px_24px_rgba(99,102,241,0.35)]",
+            "transition-all duration-200",
+            "disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none",
+          )}
+        >
+          Save to ledger
+        </motion.button>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ─── Main Calendar ───────────────────────────────────────────── */
 export default function Calendar() {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [range, setRange] = useState<{ start: Date | null, end: Date | null }>({ start: null, end: null });
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [range, setRange] = useState<DateRange>({ start: null, end: null });
   const [hoverDate, setHoverDate] = useState<Date | null>(null);
   const [notes, setNotes] = useState<RangeNote[]>([]);
-  const [isNoteInputOpen, setIsNoteInputOpen] = useState(false);
-  const [noteContent, setNoteContent] = useState("");
-  const [direction, setDirection] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [draftNote, setDraftNote] = useState("");
+  const [slideDir, setSlideDir] = useState<number>(0);
 
-  const currentMonthIdx = currentDate.getMonth();
-  const theme = MONTHS_THEMES[currentMonthIdx];
+  const monthIdx = currentDate.getMonth();
+  const theme = MONTHS_THEMES[monthIdx];
 
+  /* Persistence — restore */
   useEffect(() => {
-    const saved = localStorage.getItem("lumina_v3_submission");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved).map((n: any) => ({
-          ...n,
-          start: new Date(n.start),
-          end: new Date(n.end)
-        }));
-        setNotes(parsed);
-      } catch (e) { console.error(e); }
-    }
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setNotes(JSON.parse(raw) as RangeNote[]);
+    } catch { /* ignore */ }
   }, []);
 
+  /* Persistence — save */
   useEffect(() => {
-    localStorage.setItem("lumina_v3_submission", JSON.stringify(notes));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
   }, [notes]);
 
+  /* Calendar grid */
   const days = useMemo(() => {
-    const start = startOfMonth(currentDate);
-    const end = endOfMonth(start);
-    return eachDayOfInterval({ start: startOfWeek(start), end: endOfWeek(end) });
+    const monthStart = startOfMonth(currentDate);
+    return eachDayOfInterval({
+      start: startOfWeek(monthStart),
+      end: endOfWeek(endOfMonth(monthStart)),
+    });
   }, [currentDate]);
 
-  const handleDateClick = (date: Date) => {
-    if (!range.start || (range.start && range.end)) {
-      setRange({ start: date, end: null });
-    } else {
-      if (isBefore(date, range.start)) {
-        setRange({ start: date, end: range.start });
-      } else {
-        setRange({ start: range.start, end: date });
+  /* Navigation */
+  const navigate = useCallback((offset: number) => {
+    setSlideDir(offset);
+    setCurrentDate((d) => addMonths(d, offset));
+  }, []);
+
+  /* Date click — two-tap range selection */
+  const handleDayClick = useCallback((day: Date) => {
+    setRange((prev) => {
+      if (!prev.start || (prev.start && prev.end)) {
+        return { start: day, end: null };
       }
-    }
-  };
+      if (isBefore(day, prev.start)) return { start: day, end: prev.start };
+      return { start: prev.start, end: day };
+    });
+  }, []);
 
-  const navMonth = (offset: number) => {
-    setDirection(offset);
-    setCurrentDate(addMonths(currentDate, offset));
-  };
+  /* Day status */
+  const getDayStatus = useCallback(
+    (day: Date) => {
+      const isStart = range.start ? isSameDay(day, range.start) : false;
+      const isEnd = range.end ? isSameDay(day, range.end) : false;
 
-  const saveNote = () => {
-    if (!noteContent.trim() || !range.start || !range.end) return;
-    const newNote: RangeNote = {
-      id: Math.random().toString(36).substring(7),
-      start: range.start,
-      end: range.end,
-      content: noteContent,
-      category: "Focus Area"
+      let isInRange = false;
+      if (range.start && range.end) {
+        isInRange = isWithinInterval(day, { start: range.start, end: range.end });
+      }
+
+      let isPreview = false;
+      if (range.start && !range.end && hoverDate) {
+        const lo = isBefore(hoverDate, range.start) ? hoverDate : range.start;
+        const hi = isBefore(hoverDate, range.start) ? range.start : hoverDate;
+        isPreview = isWithinInterval(day, { start: lo, end: hi });
+      }
+
+      const hasNote = notes.some((n) =>
+        isWithinInterval(day, { start: noteStartDate(n), end: noteEndDate(n) })
+      );
+
+      return { isStart, isEnd, isInRange, isPreview, hasNote };
+    },
+    [range, hoverDate, notes]
+  );
+
+  /* Save note */
+  const saveNote = useCallback(() => {
+    if (!draftNote.trim() || !range.start || !range.end) return;
+    const note: RangeNote = {
+      id: crypto.randomUUID(),
+      start: range.start.toISOString(),
+      end: range.end.toISOString(),
+      content: draftNote.trim(),
     };
-    setNotes([...notes, newNote]);
-    setNoteContent("");
-    setIsNoteInputOpen(false);
-  };
+    setNotes((prev) => [note, ...prev]);
+    setDraftNote("");
+    setIsModalOpen(false);
+  }, [draftNote, range]);
 
-  const deleteNote = (id: string) => setNotes(notes.filter(n => n.id !== id));
-
-  const getDayStatus = (day: Date) => {
-    const isStart = range.start && isSameDay(day, range.start);
-    const isEnd = range.end && isSameDay(day, range.end);
-
-    let isInRange = false;
-    if (range.start && range.end) {
-      isInRange = isWithinInterval(day, { start: range.start, end: range.end });
-    }
-
-    let isPreview = false;
-    if (range.start && !range.end && hoverDate) {
-      const interval = isBefore(hoverDate, range.start)
-        ? { start: hoverDate, end: range.start }
-        : { start: range.start, end: hoverDate };
-      isPreview = isWithinInterval(day, interval);
-    }
-
-    const hasNote = notes.some(n => isWithinInterval(day, { start: n.start, end: n.end }));
-
-    return { isStart, isEnd, isInRange, isPreview, hasNote };
-  };
-
-  const variants = {
-    enter: (d: number) => ({ x: d > 0 ? 50 : -50, opacity: 0 }),
+  /* Slide variants */
+  const slideVariants = {
+    enter: (d: number) => ({ x: d > 0 ? 40 : -40, opacity: 0 }),
     center: { x: 0, opacity: 1 },
-    exit: (d: number) => ({ x: d < 0 ? 50 : -50, opacity: 0 })
+    exit: (d: number) => ({ x: d < 0 ? 40 : -40, opacity: 0 }),
   };
 
   return (
-    <div className="w-full max-w-[1400px] mx-auto min-h-screen flex flex-col lg:flex-row gap-12 px-6 lg:px-12 py-8">
-      <GlobalEffects month={currentMonthIdx} />
+    <div className="relative w-full max-w-[1440px] mx-auto px-4 md:px-8 lg:px-12 py-6 flex flex-col lg:flex-row gap-8 xl:gap-12">
+      <GlobalEffects month={monthIdx} />
 
-      {/* Physical Hero Panel */}
-      <aside className="lg:w-[420px] flex-shrink-0 flex flex-col gap-8">
-        <section className="calendar-card rounded-[48px] overflow-hidden relative group h-[500px] layered-card">
-          <AnimatePresence mode="wait" custom={direction}>
+      {/* ── Hero Sidebar ─────────────────────────────────────────── */}
+      <aside className="lg:w-[400px] xl:w-[440px] flex-shrink-0 flex flex-col gap-6">
+        {/* Photo card */}
+        <div className="card card-layered rounded-[40px] overflow-hidden relative h-[440px] md:h-[480px]">
+          <AnimatePresence mode="wait" custom={slideDir}>
             <motion.img
-              key={currentMonthIdx}
-              custom={direction}
-              variants={variants}
+              key={monthIdx}
+              custom={slideDir}
+              variants={slideVariants}
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: 0.5, ease: "circOut" }}
+              transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
               src={theme.heroImage}
-              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+              alt={theme.name}
+              loading="eager"
+              className="absolute inset-0 w-full h-full object-cover"
             />
           </AnimatePresence>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-          <div className="absolute bottom-12 left-10 right-10">
-            <div className="flex items-center gap-4 mb-6">
-              <span className="text-5xl drop-shadow-2xl">{theme.emoji}</span>
-              <div className="h-px flex-1 bg-white/20" />
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+
+          {/* Nav buttons */}
+          <div className="absolute top-6 right-6 flex gap-3 z-10">
+            {([-1, 1] as const).map((dir) => (
+              <button
+                key={dir}
+                onClick={() => navigate(dir)}
+                aria-label={dir === -1 ? "Previous month" : "Next month"}
+                className="p-3.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/15 text-white hover:bg-white/25 active:scale-90 transition-all duration-150"
+              >
+                {dir === -1
+                  ? <ChevronLeft className="w-5 h-5" />
+                  : <ChevronRight className="w-5 h-5" />
+                }
+              </button>
+            ))}
+          </div>
+
+          {/* Quote */}
+          <div className="absolute bottom-8 left-8 right-8 z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-3xl drop-shadow-lg">{theme.emoji}</span>
+              <div className="flex-1 h-px bg-white/25" />
             </div>
-            <h3 className="text-white text-4xl font-display font-black tracking-tight leading-[1.1]">
+            <p className="text-white text-2xl md:text-3xl font-display font-black leading-snug tracking-tight drop-shadow-md">
               {theme.quote}
-            </h3>
+            </p>
           </div>
+        </div>
 
-          <div className="absolute top-10 right-10 flex gap-4">
-            <button onClick={() => navMonth(-1)} className="p-4 rounded-3xl bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-white/20 transition-all">
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <button onClick={() => navMonth(1)} className="p-4 rounded-3xl bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-white/20 transition-all">
-              <ChevronRight className="w-6 h-6" />
-            </button>
-          </div>
-        </section>
-
-        <div className="calendar-card p-10 rounded-[40px] flex items-start gap-6 group hover:translate-y-[-4px] transition-all">
-          <div style={{ backgroundColor: theme.primary }} className="w-14 h-14 rounded-3xl flex items-center justify-center shadow-xl animate-pulse">
-            <Sparkles className="text-white w-7 h-7" />
+        {/* Theme chip */}
+        <div
+          className="card rounded-[32px] p-7 flex items-center gap-5"
+          style={{ borderColor: theme.primary + "40" }}
+        >
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg"
+            style={{ backgroundColor: theme.primary }}
+          >
+            <Sparkles className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h5 className="text-[10px] font-black uppercase tracking-[0.4em] mb-2 opacity-40">Seasonal Engine</h5>
-            <p className="text-sm font-bold opacity-70 leading-relaxed">
-              Dynamically rendering {theme.name}'s specific metadata and color fields.
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--text-dim)] mb-1">
+              Active Theme
+            </p>
+            <p className="text-sm font-bold text-[var(--text)]">
+              {theme.name} — {theme.name === "April" || theme.name === "September" ? "warm" : "seasonal"} palette applied
             </p>
           </div>
         </div>
       </aside>
 
-      {/* Wall Calendar Main Grid */}
-      <main className="flex-1 flex flex-col gap-12">
-        <div className="calendar-card rounded-[56px] p-10 lg:p-16 relative overflow-hidden layered-card">
-          <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+      {/* ── Calendar & Notes ─────────────────────────────────────── */}
+      <main className="flex-1 flex flex-col gap-8 min-w-0">
+        {/* Calendar card */}
+        <div className="card card-layered rounded-[48px] p-8 md:p-12 xl:p-14 relative overflow-hidden">
+          {/* Header */}
+          <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12">
             <div>
-              <div className="flex items-center gap-4 mb-4 opacity-30">
-                <CalendarIcon className="w-5 h-5" />
-                <span className="text-xs font-black uppercase tracking-[0.5em]">Temporal Ledger</span>
+              <div className="flex items-center gap-2.5 mb-3 text-[var(--text-dim)]">
+                <CalendarDays className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-[0.5em]">
+                  Wall Calendar
+                </span>
               </div>
-              <h2 className="text-6xl lg:text-8xl font-display font-black tracking-tighter leading-none">
-                {format(currentDate, "MMMM")} <span className="text-stroke font-outline-2 opacity-20">{format(currentDate, "yyyy")}</span>
+              <h2 className="text-5xl md:text-6xl xl:text-7xl font-display font-black tracking-tighter leading-none text-[var(--text)]">
+                {format(currentDate, "MMMM")}
+                {" "}
+                <span className="text-ghost">{format(currentDate, "yyyy")}</span>
               </h2>
             </div>
 
-            <div className="flex items-center bg-gray-100 dark:bg-white/5 p-2.5 rounded-[28px] self-start border border-black/5 dark:border-white/5">
-              {["MT", "WK", "SY"].map(t => (
-                <button key={t} className={cn("px-8 py-3 rounded-[22px] text-[10px] font-black uppercase tracking-widest transition-all", t === "MT" ? "bg-white dark:bg-white/10 shadow-lg text-indigo-600 dark:text-indigo-400" : "opacity-30")}>
-                  {t}
+            {/* View tab strip */}
+            <div className="flex items-center p-1.5 gap-1 bg-gray-100 dark:bg-white/5 rounded-2xl self-start border border-[var(--border)]">
+              {["Month", "Week"].map((v) => (
+                <button
+                  key={v}
+                  className={cn(
+                    "px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-200",
+                    v === "Month"
+                      ? "bg-white dark:bg-white/10 shadow-sm text-[var(--accent)]"
+                      : "text-[var(--text-dim)] hover:text-[var(--text)]"
+                  )}
+                >
+                  {v}
                 </button>
               ))}
             </div>
           </header>
 
-          <div className="grid grid-cols-7 mb-10 gap-4 opacity-20">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-              <div key={d} className="text-center text-[11px] font-black uppercase tracking-[0.4em]">{d}</div>
+          {/* Weekday labels */}
+          <div className="grid grid-cols-7 mb-6">
+            {WEEKDAYS.map((d) => (
+              <div key={d} className="text-center text-[10px] font-black uppercase tracking-[0.35em] text-[var(--text-dim)] py-2 opacity-60">
+                {d}
+              </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-y-4 gap-x-0 relative z-10">
+          {/* Day grid */}
+          <div className="grid grid-cols-7 gap-y-1">
             {days.map((day, i) => {
               const inMonth = isSameMonth(day, currentDate);
-              const { isStart, isEnd, isInRange, isPreview, hasNote } = getDayStatus(day);
-              const today = isToday(day);
+              const status = getDayStatus(day);
 
               return (
-                <div key={i} className="relative aspect-square px-1 group">
-                  {/* Range Highlight Background */}
-                  {(isInRange || isPreview) && inMonth && (
-                    <motion.div
-                      layoutId="range-bg"
-                      className={cn(
-                        "absolute inset-y-2 inset-x-0 z-0",
-                        isInRange ? "bg-indigo-500/10" : "bg-indigo-500/5",
-                        isStart && "rounded-l-full",
-                        isEnd && "rounded-r-full",
-                        !isStart && !isEnd && "rounded-none"
-                      )}
-                    />
-                  )}
-
-                  <motion.button
-                    whileHover={{ scale: inMonth ? 1.1 : 1, y: -4 }}
-                    whileTap={{ scale: 0.95 }}
-                    onMouseEnter={() => inMonth && setHoverDate(day)}
-                    onMouseLeave={() => setHoverDate(null)}
-                    onClick={() => inMonth && handleDateClick(day)}
-                    className={cn(
-                      "w-full h-full rounded-full flex flex-col items-center justify-center transition-all duration-300 relative z-10",
-                      !inMonth && "opacity-0 cursor-default",
-                      (isStart || isEnd) ? "bg-indigo-600 dark:bg-indigo-500 text-white shadow-[0_8px_20px_-4px_rgba(79,70,229,0.4)]" : "text-[var(--app-text)] hover:bg-gray-100 dark:hover:bg-white/5",
-                      today && !isStart && !isEnd && "ring-2 ring-indigo-500/30 ring-offset-4 ring-offset-transparent",
-                    )}
-                  >
-                    <span className={cn(
-                      "text-xl font-display font-black",
-                      (isStart || isEnd) && "text-white"
-                    )}>
-                      {format(day, "d")}
-                    </span>
-
-                    {/* Indicators */}
-                    {hasNote && !isStart && !isEnd && (
-                      <div className="absolute bottom-3 w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                    )}
-                  </motion.button>
-                </div>
+                <DayCell
+                  key={i}
+                  day={day}
+                  inMonth={inMonth}
+                  isRangeStart={status.isStart}
+                  isRangeEnd={status.isEnd}
+                  onClick={() => handleDayClick(day)}
+                  onMouseEnter={() => setHoverDate(day)}
+                  onMouseLeave={() => setHoverDate(null)}
+                  isToday={isToday(day)}
+                  {...status}
+                />
               );
             })}
           </div>
 
+          {/* Floating range action bar */}
           <AnimatePresence>
             {range.start && range.end && (
               <motion.div
-                initial={{ y: 60, opacity: 0 }}
+                initial={{ y: 80, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 60, opacity: 0 }}
-                className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-black dark:bg-white text-white dark:text-black px-12 py-6 rounded-full shadow-3xl flex items-center gap-10 z-[100] border border-white/10"
+                exit={{ y: 80, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-6 px-8 py-4 rounded-full bg-[var(--text)] text-[var(--bg)] shadow-[0_16px_48px_rgba(0,0,0,0.25)] z-50 whitespace-nowrap"
               >
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40 mb-1">Duration</span>
-                  <div className="flex items-center gap-3 text-base font-black font-display">
-                    {format(range.start, "MMM d")} <ArrowRight className="w-4 h-4 opacity-40" /> {format(range.end, "MMM d")}
-                  </div>
-                </div>
-                <div className="h-10 w-px bg-white/20 dark:bg-black/20" />
-                <div className="flex gap-6">
-                  <button onClick={() => setRange({ start: null, end: null })} className="text-xs font-black uppercase tracking-[0.3em] opacity-40 hover:opacity-100 transition-opacity">Void</button>
-                  <button onClick={() => setIsNoteInputOpen(true)} className="px-10 py-3.5 bg-indigo-600 text-white rounded-full text-xs font-black uppercase tracking-[0.4em] hover:scale-105 transition-all">Scribe</button>
-                </div>
+                <span className="flex items-center gap-2 text-sm font-black">
+                  {format(range.start, "MMM d")}
+                  <ArrowRight className="w-4 h-4 opacity-50" />
+                  {format(range.end, "MMM d")}
+                </span>
+                <div className="w-px h-6 bg-current opacity-20" />
+                <button
+                  onClick={() => setRange({ start: null, end: null })}
+                  className="text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-5 py-2.5 bg-[var(--accent)] text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-md"
+                >
+                  Add Note
+                </button>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Global Persistence Section */}
-        <section className="grid lg:grid-cols-2 gap-10">
-          <div className="calendar-card rounded-[48px] p-12 flex flex-col gap-10 min-h-[450px]">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
-                  <StickyNote className="w-5 h-5 text-indigo-500" />
-                </div>
-                <h3 className="text-2xl font-display font-black">Memory Archives</h3>
-              </div>
-              <div className="px-4 py-1.5 rounded-full bg-gray-100 dark:bg-white/5 text-[10px] font-black opacity-40 uppercase tracking-widest">{notes.length} Active</div>
-            </div>
+        {/* ── Two-column bottom section ───────────────────────────── */}
+        <div className="grid md:grid-cols-2 gap-8">
+          <NotesPanel
+            notes={notes}
+            range={range}
+            onDelete={(id) => setNotes((prev) => prev.filter((n) => n.id !== id))}
+            onAddNote={() => setIsModalOpen(true)}
+          />
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 space-y-8">
-              {notes.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center opacity-20 gap-6">
-                  <CalendarIcon className="w-16 h-16 stroke-[1px]" />
-                  <p className="text-sm font-bold uppercase tracking-[0.5em]">Tied to temporal grid...</p>
-                </div>
-              ) : (
-                notes.map(note => (
-                  <motion.div
-                    layout
-                    key={note.id}
-                    className="p-10 rounded-[40px] bg-gray-50 dark:bg-white/5 border border-black/5 dark:border-white/5 hover:border-indigo-500/30 transition-all group"
-                  >
-                    <div className="flex items-start justify-between mb-6">
-                      <div className="flex flex-col gap-2">
-                        <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-3">
-                          {format(note.start, "MMM d")} <ArrowRight className="w-3 h-3 opacity-30" /> {format(note.end, "MMM d")}
-                        </span>
-                        <h6 className="text-[10px] font-black opacity-30 uppercase tracking-[0.5em]">{note.category}</h6>
-                      </div>
-                      <button onClick={() => deleteNote(note.id)} className="p-3 rounded-2xl bg-rose-500/10 text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                    <p className="text-lg font-medium leading-relaxed opacity-80">{note.content}</p>
-                  </motion.div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="calendar-card rounded-[48px] p-12 flex flex-col items-center justify-center text-center gap-10 bg-indigo-600 text-white border-none shadow-indigo-600/30 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl" />
-            <div className="w-24 h-24 bg-white/20 rounded-[36px] flex items-center justify-center animate-float relative z-10 border border-white/20 shadow-2xl">
-              <Sparkles className="w-12 h-12" />
+          {/* "Submission info" accent card */}
+          <div className="card rounded-[40px] p-10 flex flex-col items-center justify-center text-center gap-8 bg-gradient-to-br from-indigo-600 to-violet-700 text-white border-none overflow-hidden relative">
+            <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-white/10 blur-3xl" />
+            <div className="w-20 h-20 rounded-[28px] bg-white/20 border border-white/20 flex items-center justify-center animate-float shadow-2xl relative z-10">
+              <Sparkles className="w-10 h-10" />
             </div>
             <div className="relative z-10">
-              <h3 className="text-3xl font-display font-black mb-4">Submission Context</h3>
-              <p className="text-white/70 text-base leading-relaxed max-w-xs font-medium tracking-tight">
-                Premium engineering logic applied to temporal mapping and persistence systems.
+              <h3 className="text-2xl font-display font-black mb-3">
+                Built to impress
+              </h3>
+              <p className="text-white/70 text-sm leading-relaxed max-w-xs font-medium">
+                Premium date-range UX, localStorage persistence, and
+                physical calendar aesthetics — all in one submission.
               </p>
             </div>
-            <div className="flex gap-4 relative z-10">
-              <div className="px-8 py-3 bg-white/10 rounded-full border border-white/20 text-[10px] font-black uppercase tracking-[0.4em]">ST-FINAL-ENGINE</div>
+            <div className="flex flex-wrap gap-3 justify-center relative z-10">
+              {["React 19", "TypeScript", "Framer Motion"].map((tag) => (
+                <span key={tag} className="px-4 py-2 bg-white/10 rounded-full border border-white/15 text-[11px] font-black uppercase tracking-wider">
+                  {tag}
+                </span>
+              ))}
             </div>
           </div>
-        </section>
+        </div>
       </main>
 
-      {/* Premium Range Scribe Portal */}
+      {/* ── Note Modal ───────────────────────────────────────────── */}
       <AnimatePresence>
-        {isNoteInputOpen && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-3xl"
-              onClick={() => setIsNoteInputOpen(false)}
-            />
-            <motion.div
-              initial={{ scale: 0.95, y: 100, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.95, y: 100, opacity: 0 }}
-              className="relative w-full max-w-xl calendar-card rounded-[64px] p-16 lg:p-20 border-none bg-white dark:bg-[#0A0A0B] shadow-4xl"
-            >
-              <div className="mb-12 flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-3 text-indigo-500 mb-4 font-black text-[11px] uppercase tracking-[0.4em]">
-                    <StickyNote className="w-5 h-5" /> Temporal Node Creation
-                  </div>
-                  <h4 className="text-5xl font-display font-black tracking-tighter leading-none mb-4">
-                    Notes for <span className="opacity-40">{format(range.start!, "MMM d")}</span> → <span className="opacity-40">{format(range.end!, "MMM d")}</span>
-                  </h4>
-                </div>
-                <button onClick={() => setIsNoteInputOpen(false)} className="p-4 bg-gray-100 dark:bg-white/5 rounded-3xl hover:bg-rose-500 hover:text-white transition-all">
-                  <X className="w-7 h-7" />
-                </button>
-              </div>
-
-              <textarea
-                autoFocus
-                value={noteContent}
-                onChange={(e) => setNoteContent(e.target.value)}
-                placeholder="Log your seasonal agenda..."
-                className="w-full h-56 bg-transparent text-2xl font-medium resize-none border-none focus:ring-0 placeholder:opacity-20 custom-scrollbar mb-12"
-              />
-
-              <button
-                onClick={saveNote}
-                className="w-full py-7 bg-indigo-600 text-white rounded-[32px] text-sm font-black uppercase tracking-[0.4em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
-              >
-                Sync with Temporal Grid
-              </button>
-            </motion.div>
-          </div>
+        {isModalOpen && range.start && range.end && (
+          <NoteModal
+            range={range}
+            value={draftNote}
+            onChange={setDraftNote}
+            onSave={saveNote}
+            onClose={() => { setIsModalOpen(false); setDraftNote(""); }}
+          />
         )}
       </AnimatePresence>
     </div>
