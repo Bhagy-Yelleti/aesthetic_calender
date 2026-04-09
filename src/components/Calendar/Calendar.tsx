@@ -120,12 +120,7 @@ export default function Calendar() {
           <span>Workspace</span>
         </div>
 
-        <div className="flex items-center gap-10">
-          <div className="text-9xl transition-all duration-700">
-            {currentMonthIdx === 2 || currentMonthIdx === 3 ? "💮" :
-              currentMonthIdx >= 5 && currentMonthIdx <= 7 ? "🌊" :
-                currentMonthIdx >= 8 && currentMonthIdx <= 10 ? "🍁" : "❅"}
-          </div>
+        <div className="flex items-center">
           <div>
             <h1 className="text-7xl font-black text-[var(--app-text)] tracking-tighter mb-4 leading-none">
               {format(currentDate, "MMMM yyyy")}
