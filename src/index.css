@@ -7,30 +7,26 @@
 }
 
 :root {
-  --app-bg: #FFFFFF;
+  --app-bg: #F8FAFC;
   --app-text: #0F172A;
   --app-dim: #64748B;
   --accent: #6366F1;
   --accent-soft: rgba(99, 102, 241, 0.1);
-  --glass: rgba(255, 255, 255, 0.7);
+  --glass: rgba(255, 255, 255, 0.9);
   --glass-border: rgba(0, 0, 0, 0.05);
-  --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-  --selection-range: rgba(99, 102, 241, 0.08);
-
-  /* Monthly Primary Colors */
-  --month-primary: #6366F1;
+  --card-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.08);
+  --paper-grain: url("https://www.transparenttextures.com/patterns/paper-fibres.png");
 }
 
 [data-theme='dark'] {
-  --app-bg: #020617;
-  --app-text: #F8FAFC;
+  --app-bg: #0A0A0B;
+  --app-text: #F1F5F9;
   --app-dim: #94A3B8;
   --accent: #818CF8;
   --accent-soft: rgba(129, 140, 248, 0.15);
-  --glass: rgba(15, 23, 42, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
-  --selection-range: rgba(129, 140, 248, 0.12);
+  --glass: rgba(22, 22, 24, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --card-shadow: 0 10px 40px -5px rgba(0, 0, 0, 0.4);
 }
 
 body {
@@ -38,19 +34,52 @@ body {
   color: var(--app-text);
   @apply antialiased overflow-x-hidden;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  background-image: var(--paper-grain);
+  background-opacity: 0.02;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.glass-morphism {
+.calendar-card {
   background: var(--glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
   box-shadow: var(--card-shadow);
+  position: relative;
+}
+
+.calendar-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), transparent, rgba(0, 0, 0, 0.05));
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Layered Paper Effect */
+.layered-card {
+  position: relative;
+}
+
+.layered-card::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 20px;
+  right: 20px;
+  height: 40px;
+  background: var(--glass);
+  opacity: 0.4;
+  border-radius: inherit;
+  z-index: -1;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  transform: scale(0.98);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -58,13 +87,17 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--app-dim);
-  opacity: 0.1;
-  border-radius: 20px;
+  background: var(--accent);
+  border-radius: 10px;
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+.text-stroke {
+  -webkit-text-stroke: 1px var(--app-text);
+  color: transparent;
+}
+
+.font-outline-2 {
+  -webkit-text-stroke: 2px var(--app-text);
 }
 
 ::selection {
@@ -80,30 +113,10 @@ body {
   }
 
   50% {
-    transform: translateY(-10px);
+    transform: translateY(-8px);
   }
 }
 
 .animate-float {
-  animation: float 5s ease-in-out infinite;
-}
-
-.calendar-transition-enter {
-  opacity: 0;
-  transform: scale(0.98) translateY(10px);
-}
-
-.calendar-transition-enter-active {
-  opacity: 1;
-  transform: scale(1) translateY(0);
-  transition: opacity 400ms, transform 400ms;
-}
-
-.text-stroke {
-  -webkit-text-stroke: 1px var(--app-text);
-  color: transparent;
-}
-
-.font-outline-2 {
-  -webkit-text-stroke: 2px var(--app-text);
+  animation: float 6s ease-in-out infinite;
 }
