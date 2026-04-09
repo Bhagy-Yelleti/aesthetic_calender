@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Calendar from "@/src/components/Calendar/Calendar";
-import { Moon, Sun, Sparkles, LayoutGrid } from "lucide-react";
+import { Moon, Sun, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {

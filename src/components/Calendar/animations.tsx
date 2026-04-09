@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 
 // Premium Snowy experience
 export const Snow = () => (

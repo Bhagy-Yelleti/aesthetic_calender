@@ -10,20 +10,16 @@ import {
   isWithinInterval,
   addMonths,
   isToday,
-  isBefore,
-  isValid,
-  parseISO
+  isBefore
 } from "date-fns";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  Plus,
   Sparkles,
   StickyNote,
   Calendar as CalendarIcon,
   Trash2,
-  MoreVertical,
   X
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -46,12 +42,11 @@ export default function Calendar() {
   const [notes, setNotes] = useState<RangeNote[]>([]);
   const [isNoteInputOpen, setIsNoteInputOpen] = useState(false);
   const [noteContent, setNoteContent] = useState("");
-  const [direction, setDirection] = useState(0); // For month transition animations
+  const [direction, setDirection] = useState(0);
 
   const currentMonthIdx = currentDate.getMonth();
   const theme = MONTHS_THEMES[currentMonthIdx];
 
-  // Persistence
   useEffect(() => {
     const saved = localStorage.getItem("lumina_v3_notes");
     if (saved) {
@@ -72,7 +67,6 @@ export default function Calendar() {
     localStorage.setItem("lumina_v3_notes", JSON.stringify(notes));
   }, [notes]);
 
-  // Derived Grid
   const days = useMemo(() => {
     const start = startOfMonth(currentDate);
     const end = endOfMonth(start);
@@ -81,7 +75,6 @@ export default function Calendar() {
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentDate]);
 
-  // Actions
   const handleDateClick = (date: Date) => {
     if (!range.start || (range.start && range.end)) {
       setRange({ start: date, end: null });
@@ -117,7 +110,6 @@ export default function Calendar() {
     setNotes(notes.filter(n => n.id !== id));
   };
 
-  // UI States
   const getDayStatus = (day: Date) => {
     const isStart = range.start && isSameDay(day, range.start);
     const isEnd = range.end && isSameDay(day, range.end);
@@ -140,7 +132,6 @@ export default function Calendar() {
     return { isStart, isEnd, isSelectedRange, isPreviewRange, hasNote };
   };
 
-  // Monthly transition variants
   const variants = {
     enter: (direction: number) => ({
       x: direction > 0 ? 100 : -100,
@@ -163,7 +154,6 @@ export default function Calendar() {
     <div className="w-full max-w-[1400px] mx-auto min-h-[800px] flex flex-col lg:flex-row gap-8 px-4 lg:px-8 py-4">
       <GlobalEffects month={currentMonthIdx} />
 
-      {/* Hero Section - Sticky on Local */}
       <aside className="lg:w-[400px] flex-shrink-0 flex flex-col gap-6">
         <section className="glass-morphism rounded-[40px] overflow-hidden aspect-[4/5] lg:aspect-auto lg:h-[450px] relative group border-none">
           <AnimatePresence mode="wait" custom={direction}>
@@ -203,7 +193,6 @@ export default function Calendar() {
           </div>
         </section>
 
-        {/* Dynamic Theme Banner */}
         <div style={{ backgroundColor: theme.primary + '10', borderColor: theme.primary + '30' }} className="p-8 rounded-[32px] border flex items-start gap-5 group transition-all hover:bg-opacity-20 translate-y-0 hover:-translate-y-1">
           <div style={{ backgroundColor: theme.primary }} className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transform group-hover:rotate-12 transition-transform">
             <Sparkles className="text-white w-6 h-6" />
@@ -217,10 +206,8 @@ export default function Calendar() {
         </div>
       </aside>
 
-      {/* Main Calendar Content */}
       <main className="flex-1 flex flex-col gap-8">
         <div className="glass-morphism rounded-[48px] p-8 lg:p-12 relative overflow-hidden">
-          {/* Calendar Header */}
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -241,7 +228,6 @@ export default function Calendar() {
             </div>
           </header>
 
-          {/* Weekdays */}
           <div className="grid grid-cols-7 mb-8 gap-2">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
               <div key={day} className="text-center text-[10px] font-black uppercase tracking-[0.3em] opacity-20 py-2">
@@ -250,7 +236,6 @@ export default function Calendar() {
             ))}
           </div>
 
-          {/* Days Grid */}
           <div className="grid grid-cols-7 gap-y-3 gap-x-1 lg:gap-x-4">
             {days.map((day, i) => {
               const inMonth = isSameMonth(day, currentDate);
@@ -284,14 +269,12 @@ export default function Calendar() {
                       {format(day, "d")}
                     </span>
 
-                    {/* Indicators */}
                     <div className="mt-1 flex gap-0.5">
                       {hasNote && !isStart && !isEnd && (
                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
                       )}
                     </div>
 
-                    {/* Hover tooltip for range preview */}
                     {isPreviewRange && !isStart && !isSelectedRange && (
                       <div className="absolute inset-0 bg-indigo-500/5 rounded-[24px]" />
                     )}
@@ -301,7 +284,6 @@ export default function Calendar() {
             })}
           </div>
 
-          {/* Floating Action Bar */}
           <AnimatePresence>
             {range.start && range.end && (
               <motion.div
@@ -326,7 +308,6 @@ export default function Calendar() {
           </AnimatePresence>
         </div>
 
-        {/* Notes Grid Section */}
         <section className="grid md:grid-cols-2 gap-8">
           <div className="glass-morphism rounded-[40px] p-10 flex flex-col gap-8">
             <div className="flex justify-between items-center">
@@ -387,7 +368,6 @@ export default function Calendar() {
         </section>
       </main>
 
-      {/* Modern Note Creation Modal */}
       <AnimatePresence>
         {isNoteInputOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
@@ -404,7 +384,6 @@ export default function Calendar() {
               exit={{ scale: 0.9, y: 50, opacity: 0 }}
               className="relative w-full max-w-lg glass-morphism rounded-[56px] p-12 lg:p-16 border-none bg-white dark:bg-[#020617] shadow-3xl overflow-hidden"
             >
-              {/* Range Header in Modal */}
               <div className="mb-12 flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-3 text-indigo-500 mb-3 font-black text-[10px] uppercase tracking-[0.4em]">
