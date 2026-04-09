@@ -1,80 +1,84 @@
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 
-// Snowy days
+// Premium Snowy experience
 export const Snow = () => (
   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-    {[...Array(30)].map((_, i) => {
-      const size = Math.random() * 3 + 1;
-      const startX = Math.random() * 100;
-      return (
-        <motion.div
-          key={i}
-          className="absolute rounded-full bg-white/40"
-          style={{ width: size, height: size, left: `${startX}%`, top: -10 }}
-          animate={{
-            top: ["-5%", "105%"],
-            left: [`${startX}%`, `${startX + (Math.random() * 10 - 5)}%`],
-            opacity: [0, 0.4, 0.4, 0],
-          }}
-          transition={{
-            duration: 8 + Math.random() * 10,
-            repeat: Infinity,
-            delay: Math.random() * 10,
-            ease: "linear",
-          }}
-        />
-      );
-    })}
-  </div>
-);
-
-// Spring petals
-export const FallingPetals = () => (
-  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-    {[...Array(15)].map((_, i) => {
-      const startX = Math.random() * 100;
-      return (
-        <motion.div
-          key={i}
-          className="absolute"
-          style={{
-            left: `${startX}%`,
-            top: -20,
-            width: Math.random() * 8 + 4,
-            height: Math.random() * 8 + 4,
-          }}
-          animate={{
-            top: ["0%", "110%"],
-            left: [`${startX}%`, `${startX + Math.random() * 20 - 10}%`],
-            rotate: [0, 360],
-            opacity: [0, 0.3, 0.3, 0],
-          }}
-          transition={{ duration: 10 + Math.random() * 10, repeat: Infinity, delay: Math.random() * 10 }}
-        >
-          <svg viewBox="0 0 20 20" fill="none">
-            <ellipse cx="10" cy="10" rx="8" ry="4" fill="rgba(255,182,193,0.4)" transform="rotate(45 10 10)" />
-          </svg>
-        </motion.div>
-      );
-    })}
-  </div>
-);
-
-// Summer heat/wind haze
-export const WarmBreeze = () => (
-  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-    {[...Array(5)].map((_, i) => (
+    {[...Array(40)].map((_, i) => (
       <motion.div
         key={i}
-        className="absolute inset-0 bg-yellow-400/5"
+        className="absolute rounded-full bg-indigo-500/10 dark:bg-white/10 blur-[1px]"
+        initial={{
+          width: Math.random() * 4 + 2,
+          height: Math.random() * 4 + 2,
+          left: `${Math.random() * 100}%`,
+          top: -20,
+          opacity: 0
+        }}
         animate={{
-          opacity: [0, 0.05, 0],
-          x: [-20, 20, -20],
+          top: "110%",
+          left: [`${Math.random() * 100}%`, `${Math.random() * 100}%`, `${Math.random() * 100}%`],
+          opacity: [0, 0.4, 0.4, 0],
         }}
         transition={{
-          duration: 5 + i,
+          duration: 10 + Math.random() * 20,
           repeat: Infinity,
-          delay: i * 2,
+          delay: Math.random() * 15,
+          ease: "linear",
+        }}
+      />
+    ))}
+  </div>
+);
+
+// High-fidelity petals
+export const FallingPetals = () => (
+  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    {[...Array(20)].map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute"
+        initial={{
+          left: `${Math.random() * 100}%`,
+          top: -30,
+          rotate: Math.random() * 360,
+          scale: Math.random() * 0.5 + 0.5
+        }}
+        animate={{
+          top: "110%",
+          left: [`${Math.random() * 100}%`, `${Math.random() * 100}%`],
+          rotate: 720,
+          opacity: [0, 0.5, 0.5, 0],
+        }}
+        transition={{
+          duration: 15 + Math.random() * 15,
+          repeat: Infinity,
+          delay: Math.random() * 20,
+          ease: "easeInOut"
+        }}
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C12 2 15 10 20 12C15 14 12 22 12 22C12 22 9 14 4 12C9 10 12 2 12 2Z" fill="rgba(255,182,193,0.3)" />
+        </svg>
+      </motion.div>
+    ))}
+  </div>
+);
+
+// Atmospheric haze
+export const WarmBreeze = () => (
+  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    {[...Array(3)].map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute inset-0 bg-gradient-to-tr from-orange-500/5 to-purple-500/5 blur-3xl"
+        animate={{
+          opacity: [0.1, 0.3, 0.1],
+          scale: [1, 1.2, 1],
+          x: [-50, 50, -50],
+        }}
+        transition={{
+          duration: 15 + i * 5,
+          repeat: Infinity,
           ease: "easeInOut",
         }}
       />
@@ -82,68 +86,63 @@ export const WarmBreeze = () => (
   </div>
 );
 
-// Rain for the monsoon season
+// Rainfall
 export const GentleRain = () => (
   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-    {[...Array(40)].map((_, i) => {
-      const startX = Math.random() * 100;
-      return (
-        <motion.div
-          key={i}
-          className="absolute bg-blue-400/20"
-          style={{
-            left: `${startX}%`,
-            top: -20,
-            width: 1,
-            height: 15,
-            transform: "rotate(15deg)",
-          }}
-          animate={{
-            top: ["-5%", "105%"],
-            opacity: [0, 0.3, 0.3, 0],
-          }}
-          transition={{
-            duration: 1 + Math.random() * 1,
-            repeat: Infinity,
-            delay: Math.random() * 2,
-            ease: "linear",
-          }}
-        />
-      );
-    })}
+    {[...Array(60)].map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute bg-indigo-500/10 dark:bg-white/5"
+        initial={{
+          left: `${Math.random() * 100}%`,
+          top: -50,
+          width: 1,
+          height: Math.random() * 40 + 20,
+        }}
+        animate={{
+          top: "110%",
+        }}
+        transition={{
+          duration: 0.8 + Math.random() * 0.4,
+          repeat: Infinity,
+          delay: Math.random() * 2,
+          ease: "linear",
+        }}
+      />
+    ))}
   </div>
 );
 
-// Autumn leaves
+// Drifting leaves
 export const AutumnLeaves = () => (
   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-    {[...Array(12)].map((_, i) => {
-      const startX = Math.random() * 100;
-      const colors = ["rgba(217,119,6,0.3)", "rgba(180,83,9,0.3)", "rgba(153,61,0,0.3)"];
-      return (
-        <motion.div
-          key={i}
-          className="absolute"
-          style={{
-            left: `${startX}%`,
-            top: -20,
-            width: 12,
-            height: 12,
-          }}
-          animate={{
-            top: ["0%", "110%"],
-            left: [`${startX}%`, `${startX + Math.random() * 30 - 15}%`],
-            rotate: [0, 720],
-            opacity: [0, 0.4, 0.4, 0],
-          }}
-          transition={{ duration: 12 + Math.random() * 8, repeat: Infinity, delay: Math.random() * 10 }}
-        >
-          <svg viewBox="0 0 20 20">
-            <path d="M10 2 Q15 10 10 18 Q5 10 10 2" fill={colors[i % 3]} />
-          </svg>
-        </motion.div>
-      );
-    })}
+    {[...Array(15)].map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute"
+        initial={{
+          left: `${Math.random() * 100}%`,
+          top: -40,
+          rotate: Math.random() * 360,
+        }}
+        animate={{
+          top: "110%",
+          left: [`${Math.random() * 100}%`, `${Math.random() * 100}%`],
+          rotate: [0, 360, 720],
+          opacity: [0, 0.4, 0.4, 0],
+        }}
+        transition={{
+          duration: 20 + Math.random() * 15,
+          repeat: Infinity,
+          delay: Math.random() * 20,
+          ease: "linear"
+        }}
+      >
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C12 2 14 8 20 10C14 12 12 22 12 22C12 22 10 12 4 10C10 8 12 2 12 2Z" fill="rgba(217,119,6,0.2)" />
+        </svg>
+      </motion.div>
+    ))}
   </div>
 );
 
